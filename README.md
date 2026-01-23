@@ -8,7 +8,7 @@ Claude Code skills by BTWLD.
 
 | Skill | Description | Install |
 |-------|-------------|---------|
-| [crud-generator](./skills/rockets/crud-generator/) | Generate complete CRUD modules with TypeORM, NestJS, DTOs and interfaces | `npx skills add btwld/skills/rockets/crud-generator` |
+| [rockets-crud-generator](./skills/rockets-crud-generator/) | Generate complete CRUD modules with TypeORM, NestJS, DTOs and interfaces | `npx skills add btwld/skills/rockets-crud-generator` |
 
 ## License
 
