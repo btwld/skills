@@ -1,29 +1,14 @@
-# Rockets SDK Skills
+# BTWLD Skills
 
-Claude Code skills for [Rockets SDK](https://github.com/conceptadev/rockets) development.
-
-## Installation
-
-```bash
-npx skills add btwld/rockets/crud-generator
-```
+Claude Code skills by BTWLD.
 
 ## Available Skills
 
-### crud-generator
+### Rockets SDK
 
-Generate complete CRUD modules with TypeORM entities, NestJS modules, controllers, services, DTOs, and interfaces.
-
-```bash
-node crud-generator/scripts/generate.js '{
-  "entityName": "Category",
-  "fields": [
-    { "name": "name", "type": "string", "required": true, "maxLength": 100 }
-  ]
-}'
-```
-
-[Full documentation](./crud-generator/SKILL.md)
+| Skill | Description | Install |
+|-------|-------------|---------|
+| [crud-generator](./skills/rockets/crud-generator/) | Generate complete CRUD modules with TypeORM, NestJS, DTOs and interfaces | `npx skills add btwld/skills/rockets/crud-generator` |
 
 ## License
 
