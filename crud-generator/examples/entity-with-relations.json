@@ -1,0 +1,88 @@
+{
+  "entityName": "Product",
+  "pluralName": "products",
+  "tableName": "product",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string",
+      "required": true,
+      "maxLength": 200,
+      "apiDescription": "Product name",
+      "apiExample": "Wireless Headphones"
+    },
+    {
+      "name": "sku",
+      "type": "string",
+      "required": true,
+      "maxLength": 50,
+      "unique": true,
+      "apiDescription": "Stock keeping unit",
+      "apiExample": "WH-1000XM5"
+    },
+    {
+      "name": "price",
+      "type": "float",
+      "required": true,
+      "precision": 10,
+      "scale": 2,
+      "min": 0,
+      "apiDescription": "Product price",
+      "apiExample": 349.99
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "required": false,
+      "apiDescription": "Product description"
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "required": true,
+      "enumValues": ["Draft", "Active", "Discontinued"],
+      "default": "Draft",
+      "apiDescription": "Product status",
+      "apiExample": "Active"
+    },
+    {
+      "name": "stockQuantity",
+      "type": "number",
+      "required": true,
+      "min": 0,
+      "default": 0,
+      "apiDescription": "Available stock quantity",
+      "apiExample": 100
+    },
+    {
+      "name": "imageUrl",
+      "type": "string",
+      "required": false,
+      "maxLength": 500,
+      "isUrl": true,
+      "apiDescription": "Product image URL"
+    }
+  ],
+  "relations": [
+    {
+      "name": "category",
+      "type": "manyToOne",
+      "targetEntity": "Category",
+      "foreignKey": "categoryId",
+      "joinType": "LEFT",
+      "owner": true,
+      "nullable": true
+    },
+    {
+      "name": "brand",
+      "type": "manyToOne",
+      "targetEntity": "Brand",
+      "foreignKey": "brandId",
+      "joinType": "LEFT",
+      "owner": true,
+      "nullable": true
+    }
+  ],
+  "operations": ["readMany", "readOne", "createOne", "updateOne", "deleteOne", "recoverOne"],
+  "generateModelService": true
+}

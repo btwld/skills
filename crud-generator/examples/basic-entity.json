@@ -1,0 +1,31 @@
+{
+  "entityName": "Tag",
+  "pluralName": "tags",
+  "tableName": "tag",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string",
+      "required": true,
+      "maxLength": 50,
+      "unique": true,
+      "apiDescription": "Tag name",
+      "apiExample": "Featured"
+    },
+    {
+      "name": "color",
+      "type": "string",
+      "required": false,
+      "maxLength": 7,
+      "apiDescription": "Hex color code",
+      "apiExample": "#FF5733"
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "required": false,
+      "apiDescription": "Tag description"
+    }
+  ],
+  "operations": ["readMany", "readOne", "createOne", "updateOne", "deleteOne", "recoverOne"]
+}

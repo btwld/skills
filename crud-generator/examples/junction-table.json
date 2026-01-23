@@ -1,0 +1,30 @@
+{
+  "entityName": "ProductTag",
+  "pluralName": "product-tags",
+  "tableName": "product_tag",
+  "isJunction": true,
+  "fields": [],
+  "relations": [
+    {
+      "name": "product",
+      "type": "manyToOne",
+      "targetEntity": "Product",
+      "foreignKey": "productId",
+      "joinType": "LEFT",
+      "owner": true,
+      "nullable": false,
+      "onDelete": "CASCADE"
+    },
+    {
+      "name": "tag",
+      "type": "manyToOne",
+      "targetEntity": "Tag",
+      "foreignKey": "tagId",
+      "joinType": "LEFT",
+      "owner": true,
+      "nullable": false,
+      "onDelete": "CASCADE"
+    }
+  ],
+  "operations": ["readMany", "readOne", "createOne", "deleteOne"]
+}
