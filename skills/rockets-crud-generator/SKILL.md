@@ -1,5 +1,5 @@
 ---
-name: crud-generator
+name: rockets-crud-generator
 description: Generate complete Rockets SDK CRUD modules with TypeORM entities, NestJS modules, controllers, services, DTOs, and interfaces. Use when creating new entities, domain objects, or junction tables for many-to-many relationships.
 ---
 
