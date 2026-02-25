@@ -13,8 +13,8 @@ const { mapTypeToTs } = require('../lib/type-mappings');
 function generateInterface(config) {
   const { entityName, fields, relations } = config;
 
-  // Build imports
-  const imports = [`import { BaseEntityInterface } from '../../common/interfaces/base-entity.interface';`];
+  // Build imports — use Concepta's base interfaces instead of local BaseEntityInterface
+  const imports = [`import { ReferenceIdInterface, AuditInterface } from '@concepta/nestjs-common';`];
 
   // Add relation interface imports
   for (const rel of relations) {
@@ -53,8 +53,9 @@ function generateInterface(config) {
 
 /**
  * ${entityName} interface defining the core properties.
+ * Extends ReferenceIdInterface (id) and AuditInterface (dateCreated, dateUpdated, dateDeleted, version).
  */
-export interface ${entityName}Interface extends BaseEntityInterface {
+export interface ${entityName}Interface extends ReferenceIdInterface, AuditInterface {
 ${fieldDefs.join('\n')}
 }
 `;

@@ -113,7 +113,9 @@ function normalizeField(field) {
  * @returns {Object} Normalized relation
  */
 function normalizeRelation(relation) {
-  const targetEntity = toPascalCase(relation.targetEntity);
+  // Strip "Entity" suffix if present — generators append it automatically
+  const rawTarget = relation.targetEntity.replace(/Entity$/, '');
+  const targetEntity = toPascalCase(rawTarget);
   const targetKebab = toKebabCase(targetEntity);
   const targetCamel = toCamelCase(targetEntity);
 

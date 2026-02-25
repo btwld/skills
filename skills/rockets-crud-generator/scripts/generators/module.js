@@ -45,7 +45,11 @@ function generateModule(config) {
 
   // Build imports section
   imports.push(`import { Module } from '@nestjs/common';`);
+  imports.push(`import { TypeOrmModule } from '@nestjs/typeorm';`);
   imports.push(`import { TypeOrmExtModule } from '@concepta/nestjs-typeorm-ext';`);
+  imports.push(`import { AccessControlService } from '@concepta/nestjs-access-control';`);
+  imports.push(`import { ACService } from '../../access-control.service';`);
+  imports.push(`import { acRules } from '../../app.acl';`);
 
   if (hasRelations || generateModelService) {
     imports.push(`import { CrudRelationRegistry } from '@concepta/nestjs-crud';`);
@@ -93,16 +97,25 @@ function generateModule(config) {
     }
   }
 
-  // Build module imports array with TypeOrmExtModule for Rockets SDK
+  // TypeOrmModule.forFeature registers the repository for @InjectRepository(Entity) in the adapter.
+  // ACCESS_CONTROL_MODULE_SETTINGS_TOKEN is not exported from the package; use string literal.
+  const ACCESS_CONTROL_SETTINGS_TOKEN = 'ACCESS_CONTROL_MODULE_SETTINGS_TOKEN';
+
+  // Build module imports array: TypeOrmModule first (for adapter repo), then TypeOrmExtModule for Rockets SDK
   const moduleImportsCode = [
+    `TypeOrmModule.forFeature([${entityName}Entity])`,
     `TypeOrmExtModule.forFeature({
       [${upperSnakeName}_MODULE_${upperSnakeName}_ENTITY_KEY]: { entity: ${entityName}Entity },
     })`,
     ...moduleImports,
   ];
 
-  // Build providers array
-  let providersCode = providers.map(p => `    ${p},`);
+  // Build providers array: guard deps first (required when controller uses AccessControlGuard), then standard providers
+  let providersCode = [
+    `    { provide: '${ACCESS_CONTROL_SETTINGS_TOKEN}', useValue: { rules: acRules } },`,
+    `    { provide: AccessControlService, useClass: ACService },`,
+    ...providers.map(p => `    ${p},`),
+  ];
 
   // Add relation registry provider if has relations
   if (hasRelations) {

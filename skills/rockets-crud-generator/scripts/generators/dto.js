@@ -14,14 +14,24 @@ const { toPascalCase, toCamelCase } = require('../lib/name-utils');
 function generateDto(config) {
   const { entityName, fields, relations } = config;
 
-  // Collect validator imports
-  const validatorNames = new Set(['IsUUID', 'IsDate', 'IsNumber', 'IsOptional']);
+  // Collect validator imports from custom fields only
+  const validatorNames = new Set();
   for (const field of fields) {
     const validators = getValidators(field);
     for (const v of validators) {
       const name = v.match(/^(\w+)/)[1];
       validatorNames.add(name);
     }
+  }
+  // Add IsOptional if any relation or optional FK exists
+  const hasOptionalFields = fields.some(f => !f.required) || relations.length > 0;
+  if (hasOptionalFields) {
+    validatorNames.add('IsOptional');
+  }
+  // Add IsUUID if any FK fields exist
+  const hasFKFields = relations.some(r => r.owner && r.type === 'manyToOne');
+  if (hasFKFields) {
+    validatorNames.add('IsUUID');
   }
 
   // Check if we need Type decorator for relations
@@ -30,18 +40,26 @@ function generateDto(config) {
   // Build imports
   const imports = [];
 
-  // class-transformer imports
-  const transformerImports = ['Exclude', 'Expose'];
+  // class-transformer imports (Exclude at class level for safe serialization)
+  const transformerImports = ['Expose', 'Exclude'];
   if (hasRelations) {
     transformerImports.push('Type');
   }
   imports.push(`import { ${transformerImports.join(', ')} } from 'class-transformer';`);
 
-  // class-validator imports
-  imports.push(`import {\n  ${Array.from(validatorNames).sort().join(',\n  ')},\n} from 'class-validator';`);
+  // class-validator imports (add ValidateNested when there are relations)
+  if (hasRelations) {
+    validatorNames.add('ValidateNested');
+  }
+  if (validatorNames.size > 0) {
+    imports.push(`import {\n  ${Array.from(validatorNames).sort().join(',\n  ')},\n} from 'class-validator';`);
+  }
 
   // swagger imports
   imports.push(`import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';`);
+
+  // CommonEntityDto import (provides id, dateCreated, dateUpdated, dateDeleted, version)
+  imports.push(`import { CommonEntityDto } from '@concepta/nestjs-common';`);
 
   // interface import
   imports.push(`import { ${entityName}Interface } from '../interfaces/${config.kebabName}.interface';`);
@@ -52,17 +70,8 @@ function generateDto(config) {
     imports.push(`import { ${rel.targetEntity}Interface } from '../../${rel.targetKebab}/interfaces/${rel.targetKebab}.interface';`);
   }
 
-  // Build field definitions
+  // Build field definitions (custom fields only — base fields come from CommonEntityDto)
   const fieldDefs = [];
-
-  // ID field (always first)
-  fieldDefs.push(`  @Expose()
-  @ApiProperty({
-    description: 'Unique identifier',
-    example: '550e8400-e29b-41d4-a716-446655440000',
-  })
-  @IsUUID()
-  id!: string;`);
 
   // Custom fields
   for (const field of fields) {
@@ -88,35 +97,14 @@ function generateDto(config) {
     fieldDefs.push(generateRelationFieldDefinition(rel));
   }
 
-  // Base entity fields
-  fieldDefs.push(`  @Expose()
-  @ApiProperty({ description: 'Date created' })
-  @IsDate()
-  dateCreated!: Date;`);
-
-  fieldDefs.push(`  @Expose()
-  @ApiProperty({ description: 'Date updated' })
-  @IsDate()
-  dateUpdated!: Date;`);
-
-  fieldDefs.push(`  @Expose()
-  @ApiPropertyOptional({ description: 'Date deleted' })
-  @IsOptional()
-  @IsDate()
-  dateDeleted?: Date | null;`);
-
-  fieldDefs.push(`  @Expose()
-  @ApiProperty({ description: 'Version number' })
-  @IsNumber()
-  version!: number;`);
-
   return `${imports.join('\n')}
 
 /**
  * ${entityName} DTO for API responses and requests.
+ * Extends CommonEntityDto which provides: id, dateCreated, dateUpdated, dateDeleted, version.
  */
 @Exclude()
-export class ${entityName}Dto implements ${entityName}Interface {
+export class ${entityName}Dto extends CommonEntityDto implements ${entityName}Interface {
 ${fieldDefs.join('\n\n')}
 }
 `;
@@ -185,6 +173,7 @@ function generateRelationFieldDefinition(relation) {
     description: '${targetEntity}',
   })`);
   lines.push(`  @Type(() => ${targetEntity}Dto)`);
+  lines.push(isArray ? '  @ValidateNested({ each: true })' : '  @ValidateNested()');
   lines.push('  @IsOptional()');
 
   const tsType = isArray ? `${targetEntity}Interface[]` : `${targetEntity}Interface`;

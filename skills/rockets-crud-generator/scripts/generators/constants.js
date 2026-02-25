@@ -14,8 +14,8 @@ function generateConstants(config) {
   return `export const ${upperSnakeName}_MODULE_${upperSnakeName}_ENTITY_KEY = '${upperSnakeName}_MODULE_${upperSnakeName}_ENTITY_KEY';
 
 export const ${entityName}Resource = {
-  One: '${kebabName}',
-  Many: '${kebabName}',
+  One: '${kebabName}-one',
+  Many: '${kebabName}-many',
 } as const;
 `;
 }

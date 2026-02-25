@@ -1,0 +1,8 @@
+{
+  "name": "missing-auth-module",
+  "private": true,
+  "dependencies": {
+    "@bitwild/rockets-server": "*",
+    "@bitwild/rockets-server-auth": "*"
+  }
+}

@@ -11,7 +11,7 @@ Generate complete CRUD modules following Rockets SDK patterns with TypeORM, Nest
 
 ```bash
 node crud-generator/scripts/generate.js '{
-  "entityName": "Category",
+  "entityName": "Product",
   "fields": [
     { "name": "name", "type": "string", "required": true, "maxLength": 100 }
   ]
@@ -81,13 +81,17 @@ interface FieldConfig {
 interface RelationConfig {
   name: string;
   type: 'manyToOne' | 'oneToMany' | 'oneToOne';
-  targetEntity: string;
+  targetEntity: string;         // Base name WITHOUT "Entity" suffix (e.g., "User" not "UserEntity")
   foreignKey?: string;          // Default: targetCamelId
   joinType?: 'LEFT' | 'INNER';
   onDelete?: 'CASCADE' | 'SET NULL' | 'RESTRICT';
   nullable?: boolean;
 }
 ```
+
+> **Important**: `targetEntity` must be the base entity name (e.g., `"User"`, `"Category"`).
+> The generator appends `Entity` automatically. If you pass `"UserEntity"`, the suffix is
+> stripped to prevent double-suffixing (`UserEntityEntity`).
 
 ## Examples
 
@@ -152,35 +156,66 @@ interface RelationConfig {
 
 ## Generated Files
 
-For entity `Category` with default paths:
+For a given entity (e.g. `Product`) with default paths:
 
 ```
 src/
 ├── entities/
-│   └── category.entity.ts
-├── modules/category/
-│   ├── constants/category.constants.ts
-│   ├── category.module.ts
-│   ├── category.crud.controller.ts
-│   ├── category.crud.service.ts
-│   ├── category-typeorm-crud.adapter.ts
-│   └── category-access-query.service.ts
-└── shared/category/          (if paths.shared is set)
+│   └── {entity}.entity.ts
+├── modules/{entity}/
+│   ├── constants/{entity}.constants.ts
+│   ├── {entity}.module.ts
+│   ├── {entity}.crud.controller.ts
+│   ├── {entity}.crud.service.ts
+│   ├── {entity}-typeorm-crud.adapter.ts
+│   └── {entity}-access-query.service.ts
+└── shared/{entity}/          (if paths.shared is set)
     ├── dtos/
-    │   ├── category.dto.ts
-    │   ├── category-create.dto.ts
-    │   ├── category-update.dto.ts
-    │   └── category-paginated.dto.ts
+    │   ├── {entity}.dto.ts
+    │   ├── {entity}-create.dto.ts
+    │   ├── {entity}-update.dto.ts
+    │   └── {entity}-paginated.dto.ts
     ├── interfaces/
-    │   ├── category.interface.ts
-    │   ├── category-creatable.interface.ts
-    │   └── category-updatable.interface.ts
+    │   ├── {entity}.interface.ts
+    │   ├── {entity}-creatable.interface.ts
+    │   └── {entity}-updatable.interface.ts
     └── index.ts
 ```
+
+## Generated module wiring (avoids common runtime errors)
+
+The generator now produces modules that work out of the box with Nest and Concepta access control:
+
+- **TypeOrmModule.forFeature([Entity])** — The adapter uses `@InjectRepository(Entity)`; Nest resolves that only when the entity is registered via `TypeOrmModule.forFeature`. The generated module includes this so the adapter gets the repository.
+- **AccessControlGuard dependencies** — The generated controller uses `@UseGuards(AccessControlGuard)`. The guard is resolved in the controller's module and needs `ACCESS_CONTROL_MODULE_SETTINGS_TOKEN` and `AccessControlService`. The generated module provides both (using `acRules` from `app.acl` and `ACService` from `access-control.service`). The token is not exported from the package, so the generator uses the string literal.
+- **Access Query Service** — Generated stub is fail-secure (default deny), uses `query.possession`, and documents that entity id must come from `context.getRequest()?.params?.id` (not `query.subjectId`, which is not on `IQueryInfo`). Note: `context.getUser()` and `context.getRequest()` return `unknown` — add type assertions (e.g., `context.getUser() as { id?: string } | undefined`).
+
+**Requirement**: Project must have `src/app.acl.ts` and `src/access-control.service.ts` (or equivalent) when using the default module template; otherwise remove the guard providers or adjust import paths.
+
+## Known Limitations — Relations
+
+The generator produces `CrudRelations` decorators and `CrudRelationRegistry` providers for modules with relations. These reference the related module's CRUD service (e.g., `UserCrudService`), which **must exist as an importable module**. If the related entity is managed by the SDK (e.g., User from `RocketsAuthModule`) rather than by a standalone module you wrote, the generated relation wiring will fail.
+
+**Workaround for SDK-managed entities**: Remove the `CrudRelations` decorator, the `CrudRelationRegistry` provider, and all references to non-existent related modules/services. Instead, rely on TypeORM `@ManyToOne`/`@JoinColumn` decorators on the entity and include the FK column (`userId`, `categoryId`) directly in the DTO. The CRUD endpoints will accept and persist the FK; TypeORM handles the join at query time.
+
+## Known Limitations — AccessControl Decorators (CRITICAL)
+
+The generator produces `@UseGuards(AccessControlGuard)`, `@AccessControlQuery({ service: ... })`, and `@AccessControlReadMany/CreateOne/etc` decorators. **These DO NOT WORK in feature modules.** The `AccessControlGuard` uses `ModuleRef.resolve()` which cannot resolve services from feature modules — it silently returns 403 Forbidden with no error log.
+
+**Required cleanup after generation:**
+1. Remove `@UseGuards(AccessControlGuard)` from controller
+2. Remove `@AccessControlQuery(...)` from controller
+3. Remove all `@AccessControlReadMany`, `@AccessControlCreateOne`, etc. decorators from methods
+4. Remove `AccessControlGuard`, `AccessControlQuery`, and all `AccessControl*` imports from controller
+5. Remove `{ provide: 'ACCESS_CONTROL_MODULE_SETTINGS_TOKEN', ... }` from module providers
+6. Remove `{ provide: AccessControlService, useClass: ACService }` from module providers
+7. Remove `*AccessQueryService` from module providers
+8. Keep only `@Crud*` decorators — the global JWT guard handles authentication
 
 ## Post-Generation
 
 1. Export entity from entities index
 2. Import module in app.module.ts
-3. Add ACL resource (if using access control)
-4. Export from shared index (if using shared package)
+3. **Remove AccessControl decorators and providers** (see above)
+4. Remove CrudRelations if related entity is SDK-managed (see above)
+5. Export from shared index (if using shared package)
