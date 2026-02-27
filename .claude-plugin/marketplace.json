@@ -10,7 +10,7 @@
       "description": "Claude Code agents, commands, and hooks for Rockets SDK projects (NestJS + TypeORM + Concepta).",
       "version": "2.0.0",
       "source": {
-        "type": "github",
+        "source": "github",
         "repo": "btwld/skills"
       }
     }

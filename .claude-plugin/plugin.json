@@ -20,18 +20,8 @@
     "commands",
     "hooks"
   ],
-  "skills": [
-    "./skills/",
-    "./commands/"
-  ],
-  "agents": [
-    "./agents/rockets-planner.md",
-    "./agents/rockets-architect.md",
-    "./agents/rockets-code-reviewer.md",
-    "./agents/rockets-security-reviewer.md",
-    "./agents/rockets-build-resolver.md",
-    "./agents/rockets-module-generator.md",
-    "./agents/rockets-tdd-guide.md",
-    "./agents/rockets-auto-reviewer.md"
-  ]
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "agents": "./agents/",
+  "hooks": "./hooks/hooks.json"
 }
