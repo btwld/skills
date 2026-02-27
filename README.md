@@ -18,24 +18,63 @@ Instead of manually writing boilerplate for every NestJS module, this plugin giv
 
 ### Claude Code (Recommended)
 
-Install as a Claude Code plugin:
+**Step 1:** Add the marketplace:
 
 ```
-/install-plugin btwld/skills
+/plugin marketplace add btwld/skills
+```
+
+**Step 2:** Install the plugin:
+
+```
+/plugin install rockets-sdk-config@btwld
 ```
 
 This registers all agents, commands, skills, and hooks in your Claude Code session.
 
-Verify it's installed:
+**Verify** it's installed:
 
 ```
-/plugins
+/plugin list
 ```
 
-The plugin auto-updates when you start a new session. To force an update:
+**Uninstall:**
 
 ```
-/install-plugin btwld/skills
+/plugin uninstall rockets-sdk-config@btwld
+```
+
+**Remove marketplace:**
+
+```
+/plugin marketplace remove btwld
+```
+
+The plugin auto-updates when you start a new session. To force a reinstall:
+
+```
+/plugin uninstall rockets-sdk-config@btwld
+/plugin install rockets-sdk-config@btwld
+```
+
+#### Auto-install for team projects
+
+Add this to your project's `.claude/settings.json` so teammates are prompted to install automatically:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "btwld": {
+      "source": {
+        "source": "github",
+        "repo": "btwld/skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "rockets-sdk-config@btwld": true
+  }
+}
 ```
 
 ### Cursor
@@ -395,7 +434,8 @@ node skills/rockets-project-bootstrap/scripts/bootstrap.js \
   --dest ../my-app --install
 
 # 2. Install plugin (inside Claude Code)
-/install-plugin btwld/skills
+/plugin marketplace add btwld/skills
+/plugin install rockets-sdk-config@btwld
 
 # 3. Generate from spec
 /rockets-from-doc
