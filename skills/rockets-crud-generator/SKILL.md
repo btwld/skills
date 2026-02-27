@@ -10,13 +10,23 @@ Generate complete CRUD modules following Rockets SDK patterns with TypeORM, Nest
 ## Quick Start
 
 ```bash
-node crud-generator/scripts/generate.js '{
-  "entityName": "Product",
-  "fields": [
-    { "name": "name", "type": "string", "required": true, "maxLength": 100 }
-  ]
-}'
+# Generate files (outputs JSON)
+node crud-generator/scripts/generate.js '{ "entityName": "Product", "fields": [...] }'
+
+# Generate + integrate into project
+node crud-generator/scripts/generate.js '{ ... }' | node crud-generator/scripts/integrate.js --project ./apps/api
+
+# Validate after generation
+node crud-generator/scripts/validate.js --project ./apps/api --build
 ```
+
+## Scripts
+
+| Script | Purpose | Tokens |
+|--------|---------|--------|
+| `generate.js` | Generate all files as JSON output | 0 |
+| `integrate.js` | Write files + wire into project (entities, modules, ACL, queryServices) | 0 |
+| `validate.js` | Post-generation checks (structure, build, ACL) | 0 |
 
 ## Configuration
 
@@ -45,6 +55,10 @@ interface Config {
 
   // Operations (default: all)
   operations?: ('readMany' | 'readOne' | 'createOne' | 'updateOne' | 'deleteOne' | 'recoverOne')[];
+
+  // ACL (access control)
+  acl?: Record<string, { possession: 'own' | 'any'; operations: ('create'|'read'|'update'|'delete')[] }>;
+  ownerField?: string;          // Field for ownership check (default: "userId")
 
   // Options
   generateModelService?: boolean;
@@ -93,6 +107,24 @@ interface RelationConfig {
 > The generator appends `Entity` automatically. If you pass `"UserEntity"`, the suffix is
 > stripped to prevent double-suffixing (`UserEntityEntity`).
 
+### ACL Configuration
+
+```json
+{
+  "entityName": "Task",
+  "ownerField": "userId",
+  "acl": {
+    "admin": { "possession": "any", "operations": ["create","read","update","delete"] },
+    "user": { "possession": "own", "operations": ["create","read","update","delete"] }
+  }
+}
+```
+
+When `acl` is provided:
+- Access query service uses `@InjectDynamicRepository` for ownership checks
+- Generator outputs wiring snippets for `app.acl.ts` (resource enum + grants)
+- Generator outputs wiring for `queryServices` in AccessControlModule
+
 ## Examples
 
 ### Basic Entity
@@ -107,7 +139,7 @@ interface RelationConfig {
 }
 ```
 
-### With Custom Paths (monorepo)
+### With ACL + Custom Paths (monorepo)
 
 ```json
 {
@@ -116,6 +148,11 @@ interface RelationConfig {
     "entity": "apps/api/src/entities",
     "module": "apps/api/src/modules",
     "shared": "packages/shared/src"
+  },
+  "ownerField": "createdById",
+  "acl": {
+    "admin": { "possession": "any", "operations": ["create","read","update","delete"] },
+    "user": { "possession": "own", "operations": ["create","read","update","delete"] }
   },
   "fields": [
     { "name": "name", "type": "string", "required": true },
@@ -137,20 +174,6 @@ interface RelationConfig {
     { "name": "tag", "type": "manyToOne", "targetEntity": "Tag", "onDelete": "CASCADE" }
   ],
   "operations": ["readMany", "readOne", "createOne", "deleteOne"]
-}
-```
-
-### Skip Shared Package
-
-```json
-{
-  "entityName": "InternalLog",
-  "paths": {
-    "shared": null
-  },
-  "fields": [
-    { "name": "message", "type": "text" }
-  ]
 }
 ```
 
@@ -182,15 +205,93 @@ src/
     └── index.ts
 ```
 
-## Generated module wiring (avoids common runtime errors)
+## AccessControl Integration (queryServices pattern)
 
-The generator now produces modules that work out of the box with Nest and Concepta access control:
+The generator produces controllers with full ACL decorators (`@UseGuards(AccessControlGuard)`, `@AccessControlQuery`, `@AccessControlReadMany`, etc.). These work correctly when the access query service is registered via `queryServices` in `AccessControlModule.forRoot()`.
 
-- **TypeOrmModule.forFeature([Entity])** — The adapter uses `@InjectRepository(Entity)`; Nest resolves that only when the entity is registered via `TypeOrmModule.forFeature`. The generated module includes this so the adapter gets the repository.
-- **AccessControlGuard dependencies** — The generated controller uses `@UseGuards(AccessControlGuard)`. The guard is resolved in the controller's module and needs `ACCESS_CONTROL_MODULE_SETTINGS_TOKEN` and `AccessControlService`. The generated module provides both (using `acRules` from `app.acl` and `ACService` from `access-control.service`). The token is not exported from the package, so the generator uses the string literal.
-- **Access Query Service** — Generated stub is fail-secure (default deny), uses `query.possession`, and documents that entity id must come from `context.getRequest()?.params?.id` (not `query.subjectId`, which is not on `IQueryInfo`). Note: `context.getUser()` and `context.getRequest()` return `unknown` — add type assertions (e.g., `context.getUser() as { id?: string } | undefined`).
+### How it works
 
-**Requirement**: Project must have `src/app.acl.ts` and `src/access-control.service.ts` (or equivalent) when using the default module template; otherwise remove the guard providers or adjust import paths.
+1. **Generator** creates the access query service with `@InjectDynamicRepository` (database-agnostic)
+2. **integrate.js** registers the service in `queryServices` of the AccessControlModule config
+3. The `AccessControlGuard` resolves the service from its own scope (no hack needed)
+
+### Access Query Service pattern
+
+```typescript
+@Injectable()
+export class TaskAccessQueryService implements CanAccess {
+  constructor(
+    @InjectDynamicRepository(TASK_MODULE_TASK_ENTITY_KEY)
+    private taskRepo: RepositoryInterface<TaskEntity>,
+  ) {}
+
+  async canAccess(context: AccessControlContextInterface): Promise<boolean> {
+    const query = context.getQuery();
+    if (query.possession === 'any') return true;
+    if (query.possession === 'own') {
+      // Ownership check via dynamic repository (database-agnostic)
+      const entity = await this.taskRepo.findOne({ where: { id: entityId } });
+      return entity?.userId === user.id;
+    }
+    return false;
+  }
+}
+```
+
+### Required wiring in app.module.ts
+
+```typescript
+// AccessControlModule config (or via RocketsAuthModule):
+accessControl: {
+  settings: { rules: acRules },
+  queryServices: [TaskAccessQueryService, CategoryAccessQueryService],
+}
+```
+
+The `integrate.js` script handles this automatically.
+
+## integrate.js — Auto-wiring
+
+Takes the JSON output from `generate.js` and wires everything:
+
+```bash
+node generate.js '{ ... }' | node integrate.js --project ./apps/api
+```
+
+What it does:
+1. Writes all generated files to disk
+2. Adds entity export to `entities/index.ts`
+3. Adds entity to `typeorm.settings.ts` entities array
+4. Adds module import to `app.module.ts`
+5. Adds resource + grants to `app.acl.ts` (if `acl` config present)
+6. Adds access query service to `queryServices` in AccessControlModule config
+
+## validate.js — Post-generation Checks
+
+Validates project structure and patterns after generation:
+
+```bash
+node validate.js --project ./apps/api           # Static checks only
+node validate.js --project ./apps/api --build   # Static checks + TypeScript build
+```
+
+### Generated Code Checks
+1. `@InjectRepository` only in `*-typeorm-crud.adapter.ts`
+2. All entities exported in `entities/index.ts`
+3. All modules imported in `app.module.ts`
+4. ACL resources defined in `app.acl.ts`
+5. Access query services registered in feature module providers
+6. No ACL workaround providers in feature modules
+7. ACL own-scope entities have matching `ownerField` column in entity
+8. `CrudModule.forRoot({})` present when `CrudModule.forFeature()` is used
+
+### Template Integrity Checks (safety nets — should never fire on a correct template)
+9. No imports from internal `dist/` paths
+10. No stale template placeholder strings (Music Management, PetAccessQueryService, etc.)
+11. All entity tables have corresponding migrations (severity: **error**)
+12. No SQLite base classes (`*SqliteEntity`) in a Postgres project
+
+Output: `{ passed: boolean, issues: [{ severity, rule, message, file, line }] }`
 
 ## Known Limitations — Relations
 
@@ -198,24 +299,12 @@ The generator produces `CrudRelations` decorators and `CrudRelationRegistry` pro
 
 **Workaround for SDK-managed entities**: Remove the `CrudRelations` decorator, the `CrudRelationRegistry` provider, and all references to non-existent related modules/services. Instead, rely on TypeORM `@ManyToOne`/`@JoinColumn` decorators on the entity and include the FK column (`userId`, `categoryId`) directly in the DTO. The CRUD endpoints will accept and persist the FK; TypeORM handles the join at query time.
 
-## Known Limitations — AccessControl Decorators (CRITICAL)
-
-The generator produces `@UseGuards(AccessControlGuard)`, `@AccessControlQuery({ service: ... })`, and `@AccessControlReadMany/CreateOne/etc` decorators. **These DO NOT WORK in feature modules.** The `AccessControlGuard` uses `ModuleRef.resolve()` which cannot resolve services from feature modules — it silently returns 403 Forbidden with no error log.
-
-**Required cleanup after generation:**
-1. Remove `@UseGuards(AccessControlGuard)` from controller
-2. Remove `@AccessControlQuery(...)` from controller
-3. Remove all `@AccessControlReadMany`, `@AccessControlCreateOne`, etc. decorators from methods
-4. Remove `AccessControlGuard`, `AccessControlQuery`, and all `AccessControl*` imports from controller
-5. Remove `{ provide: 'ACCESS_CONTROL_MODULE_SETTINGS_TOKEN', ... }` from module providers
-6. Remove `{ provide: AccessControlService, useClass: ACService }` from module providers
-7. Remove `*AccessQueryService` from module providers
-8. Keep only `@Crud*` decorators — the global JWT guard handles authentication
-
-## Post-Generation
+## Post-Generation (manual steps if not using integrate.js)
 
 1. Export entity from entities index
 2. Import module in app.module.ts
-3. **Remove AccessControl decorators and providers** (see above)
-4. Remove CrudRelations if related entity is SDK-managed (see above)
-5. Export from shared index (if using shared package)
+3. Add entity to typeorm.settings.ts
+4. Register access query service in `queryServices` of AccessControlModule config
+5. Add resource + grants to app.acl.ts (if using ACL)
+6. Remove CrudRelations if related entity is SDK-managed (see above)
+7. Export from shared index (if using shared package)

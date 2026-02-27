@@ -4,6 +4,7 @@
  */
 
 const { toPascalCase, toCamelCase } = require('../lib/name-utils');
+const { isVersionAtLeast } = require('../lib/config-parser');
 
 /**
  * Generate CRUD controller file content
@@ -20,7 +21,23 @@ function generateController(config) {
     hasRelations,
     operations,
     sharedPackage,
+    sdkVersion,
+    acl,
+    ownerField,
   } = config;
+
+  // SDK version gate: ACL decorators only available in alpha.7+
+  const hasAcl = isVersionAtLeast(sdkVersion, 'alpha.7');
+
+  // Detect if any role uses "own" possession — need ownership filtering on readMany
+  const hasOwnScope = hasAcl && acl && Object.values(acl).some(r => r.possession === 'own');
+  const effectiveOwnerField = ownerField || 'userId';
+
+  // Filter out sdkManaged relations for CrudRelations and module/service imports
+  // CrudRelations requires alpha.11+; disable for earlier versions
+  const hasCrudRelations = isVersionAtLeast(sdkVersion, 'alpha.11');
+  const ownedRelations = relations.filter(r => !r.sdkManaged);
+  const hasOwnedRelations = hasCrudRelations && ownedRelations.length > 0;
 
   // Determine which operations to include
   const hasReadMany = operations.includes('readMany');
@@ -31,8 +48,8 @@ function generateController(config) {
   const hasRecoverOne = operations.includes('recoverOne');
 
   // Collect imports
-  const nestImports = ['UseGuards'];
-  const accessControlImports = ['AccessControlGuard', 'AccessControlQuery'];
+  const nestImports = [];
+  const accessControlImports = [];
   const crudImports = [
     'CrudController',
     'CrudControllerInterface',
@@ -46,69 +63,84 @@ function generateController(config) {
     `${entityName}UpdatableInterface`,
   ];
 
+  if (hasAcl) {
+    nestImports.push('UseGuards');
+    accessControlImports.push('AccessControlGuard', 'AccessControlQuery');
+  }
+
+  // Req decorator needed when readMany applies ownership filter
+  if (hasOwnScope && hasReadMany) {
+    nestImports.push('Req');
+  }
+
   // Add operation-specific imports
   if (hasReadMany) {
     crudImports.push('CrudReadMany');
-    accessControlImports.push('AccessControlReadMany');
+    if (hasAcl) accessControlImports.push('AccessControlReadMany');
   }
   if (hasReadOne) {
     crudImports.push('CrudReadOne');
-    accessControlImports.push('AccessControlReadOne');
+    if (hasAcl) accessControlImports.push('AccessControlReadOne');
   }
   if (hasCreateOne) {
     crudImports.push('CrudCreateOne', 'CrudBody');
-    accessControlImports.push('AccessControlCreateOne');
+    if (hasAcl) accessControlImports.push('AccessControlCreateOne');
     sharedDtoImports.push(`${entityName}CreateDto`);
   }
   if (hasUpdateOne) {
     crudImports.push('CrudUpdateOne');
     if (!hasCreateOne) crudImports.push('CrudBody');
-    accessControlImports.push('AccessControlUpdateOne');
+    if (hasAcl) accessControlImports.push('AccessControlUpdateOne');
     sharedDtoImports.push(`${entityName}UpdateDto`);
   }
   if (hasDeleteOne) {
     crudImports.push('CrudDeleteOne');
-    accessControlImports.push('AccessControlDeleteOne');
+    if (hasAcl) accessControlImports.push('AccessControlDeleteOne');
   }
   if (hasRecoverOne) {
     crudImports.push('CrudRecoverOne');
-    accessControlImports.push('AccessControlRecoverOne');
+    if (hasAcl) accessControlImports.push('AccessControlRecoverOne');
   }
 
   // Build imports
   const imports = [];
 
-  imports.push(`import { ${nestImports.join(', ')} } from '@nestjs/common';`);
+  if (nestImports.length > 0) {
+    imports.push(`import { ${nestImports.join(', ')} } from '@nestjs/common';`);
+  }
   imports.push(`import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';`);
-  imports.push(`import {\n  ${accessControlImports.join(',\n  ')},\n} from '@concepta/nestjs-access-control';`);
+  if (accessControlImports.length > 0) {
+    imports.push(`import {\n  ${accessControlImports.join(',\n  ')},\n} from '@concepta/nestjs-access-control';`);
+  }
   imports.push(`import {\n  ${crudImports.join(',\n  ')},\n} from '@concepta/nestjs-crud';`);
 
-  // Add CrudRelations import if has relations
-  if (hasRelations) {
-    imports.push(`import { CrudRelations } from '@concepta/nestjs-crud/dist/crud/decorators/routes/crud-relations.decorator';`);
+  // Add CrudRelations import if has owned relations
+  if (hasOwnedRelations) {
+    imports.push(`import { CrudRelations } from '@concepta/nestjs-crud';`);
   }
 
   // Import from shared package or relative path
   const sharedImportPath = sharedPackage || `../../shared/${kebabName}`;
   imports.push(`import {\n  ${sharedDtoImports.join(',\n  ')},\n} from '${sharedImportPath}';`);
   imports.push(`import { ${entityName}Resource } from './constants/${kebabName}.constants';`);
-  imports.push(`import { ${entityName}AccessQueryService } from './${kebabName}-access-query.service';`);
+  if (hasAcl) {
+    imports.push(`import { ${entityName}AccessQueryService } from './${kebabName}-access-query.service';`);
+  }
   imports.push(`import { ${entityName}CrudService } from './${kebabName}.crud.service';`);
-  imports.push(`import { ${entityName}Entity } from '../../entities/${kebabName}.entity';`);
+  imports.push(`import { ${entityName}Entity } from './entities/${kebabName}.entity';`);
 
-  // Add relation imports
-  if (hasRelations) {
-    for (const rel of relations) {
-      imports.push(`import { ${rel.targetEntity}Entity } from '../../entities/${rel.targetKebab}.entity';`);
-      imports.push(`import { ${rel.targetEntity}CrudService } from '../${rel.targetKebab}/${rel.targetKebab}.crud.service';`);
-    }
+  // Add relation imports — only for ownedRelations (non-sdkManaged).
+  // SDK entity imports are NOT needed in controllers (only in entity.js for TypeORM decorators).
+  for (const rel of ownedRelations) {
+    imports.push(`import { ${rel.targetEntity}Entity } from '../${rel.targetKebab}/entities/${rel.targetKebab}.entity';`);
+    imports.push(`import { ${rel.targetEntity}CrudService } from '../${rel.targetKebab}/${rel.targetKebab}.crud.service';`);
   }
 
-  // Build CrudRelations decorator
+  // Build CrudRelations decorator (only for owned relations)
   let crudRelationsDecorator = '';
-  if (hasRelations) {
-    const entityTypes = relations.map(r => `${r.targetEntity}Entity`);
-    const relationConfigs = relations.map(rel => {
+  if (hasOwnedRelations) {
+    const entityTypes = ownedRelations.map(r => `${r.targetEntity}Entity`);
+    const relationConfigs = ownedRelations.map(rel => {
       const cardinality = rel.cardinality;
       return `    {
       join: '${rel.joinType}',
@@ -130,28 +162,59 @@ ${relationConfigs.join(',\n')},
 })`;
   }
 
+  // Build class-level decorators
+  let classDecorators = '';
+  if (hasAcl) {
+    classDecorators = `
+@UseGuards(AccessControlGuard)
+@ApiBearerAuth()
+@AccessControlQuery({ service: ${entityName}AccessQueryService })`;
+  } else {
+    classDecorators = `
+@ApiBearerAuth()`;
+  }
+
   // Build methods
   const methods = [];
 
   if (hasReadMany) {
-    methods.push(`  @CrudReadMany()
-  @AccessControlReadMany(${entityName}Resource.Many)
+    const aclDecorator = hasAcl ? `\n  @AccessControlReadMany(${entityName}Resource.Many)` : '';
+
+    if (hasOwnScope) {
+      // Ownership-filtered readMany: inject user context and apply owner FK filter
+      methods.push(`  @CrudReadMany()${aclDecorator}
+  async getMany(
+    @CrudRequest() crudRequest: CrudRequestInterface<${entityName}Entity>,
+    @Req() req: { user?: { id?: string } },
+  ) {
+    // Rule #6: enforce ownership in query for own-scope roles
+    if (req.user?.id) {
+      const where = crudRequest.parsed?.search?.$and || [];
+      where.push({ '${effectiveOwnerField}': req.user.id });
+      if (!crudRequest.parsed.search) crudRequest.parsed.search = {};
+      crudRequest.parsed.search.$and = where;
+    }
+    return this.${camelName}CrudService.getMany(crudRequest);
+  }`);
+    } else {
+      methods.push(`  @CrudReadMany()${aclDecorator}
   async getMany(@CrudRequest() crudRequest: CrudRequestInterface<${entityName}Entity>) {
     return this.${camelName}CrudService.getMany(crudRequest);
   }`);
+    }
   }
 
   if (hasReadOne) {
-    methods.push(`  @CrudReadOne()
-  @AccessControlReadOne(${entityName}Resource.One)
+    const aclDecorator = hasAcl ? `\n  @AccessControlReadOne(${entityName}Resource.One)` : '';
+    methods.push(`  @CrudReadOne()${aclDecorator}
   async getOne(@CrudRequest() crudRequest: CrudRequestInterface<${entityName}Entity>) {
     return this.${camelName}CrudService.getOne(crudRequest);
   }`);
   }
 
   if (hasCreateOne) {
-    methods.push(`  @CrudCreateOne({ dto: ${entityName}CreateDto })
-  @AccessControlCreateOne(${entityName}Resource.One)
+    const aclDecorator = hasAcl ? `\n  @AccessControlCreateOne(${entityName}Resource.One)` : '';
+    methods.push(`  @CrudCreateOne({ dto: ${entityName}CreateDto })${aclDecorator}
   async createOne(
     @CrudRequest() crudRequest: CrudRequestInterface<${entityName}Entity>,
     @CrudBody() dto: ${entityName}CreateDto,
@@ -161,8 +224,8 @@ ${relationConfigs.join(',\n')},
   }
 
   if (hasUpdateOne) {
-    methods.push(`  @CrudUpdateOne({ dto: ${entityName}UpdateDto })
-  @AccessControlUpdateOne(${entityName}Resource.One)
+    const aclDecorator = hasAcl ? `\n  @AccessControlUpdateOne(${entityName}Resource.One)` : '';
+    methods.push(`  @CrudUpdateOne({ dto: ${entityName}UpdateDto })${aclDecorator}
   async updateOne(
     @CrudRequest() crudRequest: CrudRequestInterface<${entityName}Entity>,
     @CrudBody() dto: ${entityName}UpdateDto,
@@ -172,16 +235,16 @@ ${relationConfigs.join(',\n')},
   }
 
   if (hasDeleteOne) {
-    methods.push(`  @CrudDeleteOne()
-  @AccessControlDeleteOne(${entityName}Resource.One)
+    const aclDecorator = hasAcl ? `\n  @AccessControlDeleteOne(${entityName}Resource.One)` : '';
+    methods.push(`  @CrudDeleteOne()${aclDecorator}
   async deleteOne(@CrudRequest() crudRequest: CrudRequestInterface<${entityName}Entity>) {
     return this.${camelName}CrudService.deleteOne(crudRequest);
   }`);
   }
 
   if (hasRecoverOne) {
-    methods.push(`  @CrudRecoverOne()
-  @AccessControlRecoverOne(${entityName}Resource.One)
+    const aclDecorator = hasAcl ? `\n  @AccessControlRecoverOne(${entityName}Resource.One)` : '';
+    methods.push(`  @CrudRecoverOne()${aclDecorator}
   async recoverOne(@CrudRequest() crudRequest: CrudRequestInterface<${entityName}Entity>) {
     return this.${camelName}CrudService.recoverOne(crudRequest);
   }`);
@@ -195,10 +258,7 @@ ${relationConfigs.join(',\n')},
     type: ${entityName}Dto,
     paginatedType: ${entityName}PaginatedDto,
   },
-})${crudRelationsDecorator}
-@UseGuards(AccessControlGuard)
-@ApiBearerAuth()
-@AccessControlQuery({ service: ${entityName}AccessQueryService })
+})${crudRelationsDecorator}${classDecorators}
 @ApiTags('${pluralName}')
 export class ${entityName}CrudController implements CrudControllerInterface<
   ${entityName}Entity,

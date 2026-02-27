@@ -44,7 +44,35 @@ node skills/rockets-runtime-diagnostics/scripts/diagnose.js . --json
 3. Re-run diagnostics until no CRITICAL/HIGH issues remain.
 4. Run `yarn build` and then targeted tests.
 
-## Smoke test for this skill
+## Endpoint Smoke Test
+
+Tests live CRUD endpoints against a running NestJS app:
+
+```bash
+# Basic usage
+node skills/rockets-runtime-diagnostics/scripts/smoke-test-endpoints.js --project ./apps/api
+
+# Custom port + longer timeout
+node skills/rockets-runtime-diagnostics/scripts/smoke-test-endpoints.js --project ./apps/api --port 4000 --timeout 60000
+
+# Without auth (public endpoints only)
+node skills/rockets-runtime-diagnostics/scripts/smoke-test-endpoints.js --project ./apps/api --no-auth
+
+# Keep server running after tests
+node skills/rockets-runtime-diagnostics/scripts/smoke-test-endpoints.js --project ./apps/api --keep
+```
+
+What it does:
+1. Discovers CRUD modules by scanning `src/modules/*/\*.crud.controller.ts`
+2. Starts the NestJS app (`yarn start` or `npm start`)
+3. Waits for server readiness
+4. Signs up a test user + logs in to get JWT
+5. For each module: tests CREATE, READ MANY, READ ONE, UPDATE, DELETE
+6. Kills the app and outputs a JSON report
+
+Output: `{ passed, summary: { total, passed, failed, modules }, auth, modules }`
+
+## Diagnostics Smoke Test
 
 ```bash
 node skills/rockets-runtime-diagnostics/scripts/smoke-test.js

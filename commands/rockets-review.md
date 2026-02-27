@@ -14,6 +14,7 @@ Invokes the **rockets-code-reviewer** agent to review recent code changes.
 4. Verify DTO validation and exposure patterns
 5. Check TypeScript quality (no `any`, proper types)
 6. Report issues by priority (Critical, High, Medium)
+7. Optionally run `rockets-auto-reviewer` agent (haiku) for automated 9-rule validation
 
 ## Source of Truth
 

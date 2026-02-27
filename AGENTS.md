@@ -13,5 +13,5 @@ Follow `CLAUDE.md` as the canonical project contract.
 
 - CRUD modules → `rockets-crud-generator` skill (never copy-paste from guides)
 - `@InjectRepository(...)` only in `*-typeorm-crud.adapter.ts`
-- `@InjectDynamicRepository(...)` only in `*-model.service.ts`
+- `@InjectDynamicRepository(...)` only in `*-model.service.ts` and `*-access-query.service.ts`
 - Access control defaults to deny

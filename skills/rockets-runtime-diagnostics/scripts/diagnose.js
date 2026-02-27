@@ -251,6 +251,7 @@ function checkAclResourceLiterals({ issues, root, aclPath, aclRaw, tsFiles }) {
     const raw = readIfExists(file);
     if (!raw) continue;
 
+    decoratorRx.lastIndex = 0; // Reset stateful regex before each file
     let m;
     while ((m = decoratorRx.exec(raw)) !== null) {
       const resource = m[1];
@@ -325,7 +326,7 @@ function checkTypeOrmAdapterRepository({ issues, root, tsFiles }) {
 
     const hasTypeOrmForFeature = /TypeOrmModule\.forFeature\s*\(/.test(moduleRaw);
     const hasThisEntityInForFeature = new RegExp(
-      `TypeOrmModule\\.forFeature\\s*\\([^)]*\\b${entityName}\\b`,
+      `TypeOrmModule\\.forFeature\\s*\\([\\s\\S]*?\\b${entityName}\\b`,
     ).test(moduleRaw);
 
     if (!hasTypeOrmForFeature || !hasThisEntityInForFeature) {
@@ -352,7 +353,20 @@ function checkTypeOrmAdapterRepository({ issues, root, tsFiles }) {
  * Controllers using @UseGuards(AccessControlGuard) require the guard's dependencies
  * (ACCESS_CONTROL_MODULE_SETTINGS_TOKEN and AccessControlService) in the same module.
  */
-function checkAccessControlGuardDeps({ issues, root, tsFiles }) {
+function hasGlobalAccessControlWiring(appModuleRaw) {
+  if (!appModuleRaw) return false;
+
+  const hasRocketsAuthModule = /RocketsAuthModule\.forRoot(?:Async)?\s*\(/.test(appModuleRaw);
+  const hasAccessControlConfig = /accessControl\s*:/.test(appModuleRaw);
+  if (hasRocketsAuthModule && hasAccessControlConfig) {
+    return true;
+  }
+
+  return /AccessControlModule\.forRoot(?:Async)?\s*\(/.test(appModuleRaw);
+}
+
+function checkAccessControlGuardDeps({ issues, root, tsFiles, appModuleRaw }) {
+  const hasGlobalWiring = hasGlobalAccessControlWiring(appModuleRaw);
   const controllers = tsFiles.filter((f) => f.endsWith('.crud.controller.ts'));
 
   for (const controllerPath of controllers) {
@@ -371,6 +385,12 @@ function checkAccessControlGuardDeps({ issues, root, tsFiles }) {
       /ACCESS_CONTROL_MODULE_SETTINGS_TOKEN|'ACCESS_CONTROL_MODULE_SETTINGS_TOKEN'/.test(moduleRaw);
     const hasAcService =
       /provide:\s*AccessControlService/.test(moduleRaw) && /useClass:\s*ACService/.test(moduleRaw);
+
+    // Global access-control wiring via RocketsAuthModule/AccessControlModule is valid
+    // and does not require per-feature module providers.
+    if (hasGlobalWiring) {
+      continue;
+    }
 
     if (!hasSettingsToken || !hasAcService) {
       addIssue(issues, {
@@ -416,7 +436,7 @@ function main() {
   checkAclResourceLiterals({ issues, root: targetDir, aclPath, aclRaw, tsFiles });
   checkAccessQueryService({ issues, root: targetDir, tsFiles });
   checkTypeOrmAdapterRepository({ issues, root: targetDir, tsFiles });
-  checkAccessControlGuardDeps({ issues, root: targetDir, tsFiles });
+  checkAccessControlGuardDeps({ issues, root: targetDir, tsFiles, appModuleRaw });
 
   if (runBuild) {
     checks.push({ name: 'build', result: runScript(targetDir, 'build') });

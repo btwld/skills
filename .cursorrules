@@ -10,7 +10,7 @@ Priority workflow:
 
 Hard rules:
 - `@InjectRepository(...)` only in `*-typeorm-crud.adapter.ts`
-- `@InjectDynamicRepository(...)` only in `*-model.service.ts`
+- `@InjectDynamicRepository(...)` only in `*-model.service.ts` and `*-access-query.service.ts`
 - Services outside model services must not inject repositories
 - Access control defaults to deny
 - New entity/module → ALWAYS use `rockets-crud-generator` skill, never copy-paste from guides

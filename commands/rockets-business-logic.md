@@ -52,6 +52,7 @@ Implements non-CRUD business logic using structured patterns from `BUSINESS_LOGI
 
 ## Orchestration
 
+- Agent: `rockets-architect` (invoked for complex pattern decisions)
 - Pattern templates: `development-guides/BUSINESS_LOGIC_PATTERNS_GUIDE.md`
 - Extraction rules: `development-guides/SBVR_EXTRACTION_GUIDE.md`
 - Skill implementation: `skills/rockets-business-logic/SKILL.md`

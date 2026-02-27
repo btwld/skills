@@ -16,9 +16,11 @@ function generateInterface(config) {
   // Build imports — use Concepta's base interfaces instead of local BaseEntityInterface
   const imports = [`import { ReferenceIdInterface, AuditInterface } from '@concepta/nestjs-common';`];
 
-  // Add relation interface imports
+  // Add relation interface imports (skip SDK-managed entities — no shared interface file exists)
   for (const rel of relations) {
-    imports.push(`import { ${rel.targetEntity}Interface } from '../../${rel.targetKebab}/interfaces/${rel.targetKebab}.interface';`);
+    if (!rel.sdkManaged) {
+      imports.push(`import { ${rel.targetEntity}Interface } from '../../${rel.targetKebab}/interfaces/${rel.targetKebab}.interface';`);
+    }
   }
 
   // Build field definitions
@@ -44,7 +46,9 @@ function generateInterface(config) {
     fieldDefs.push('  // Relationships');
     for (const rel of relations) {
       const isArray = rel.cardinality === 'many';
-      const tsType = isArray ? `${rel.targetEntity}Interface[]` : `${rel.targetEntity}Interface`;
+      // SDK-managed entities don't have shared interface files — use ReferenceIdInterface
+      const typeName = rel.sdkManaged ? 'ReferenceIdInterface' : `${rel.targetEntity}Interface`;
+      const tsType = isArray ? `${typeName}[]` : typeName;
       fieldDefs.push(`  ${rel.name}?: ${tsType};`);
     }
   }

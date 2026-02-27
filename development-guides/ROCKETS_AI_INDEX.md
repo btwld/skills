@@ -26,7 +26,7 @@
 | **Add security** (ACL setup, access control, permissions, roles, ownership filtering) | [ACCESS_CONTROL_GUIDE.md](./ACCESS_CONTROL_GUIDE.md) | 250 |
 | **Create DTOs** (validation, PickType patterns) | [DTO_PATTERNS_GUIDE.md](./DTO_PATTERNS_GUIDE.md) | 150 |
 | **Write tests** (unit, e2e, fixtures, AAA pattern) | [TESTING_GUIDE.md](./TESTING_GUIDE.md) | 800 |
-| **Lógica customizada / não-CRUD** (qualquer serviço que use entidades: usar model services; todo módulo expõe model service da sua entidade) | Skill **rockets-custom-code** + [SDK_SERVICES_GUIDE.md](./SDK_SERVICES_GUIDE.md) | — |
+| **Custom logic / non-CRUD** (any service that uses entities: use model services; every module exposes a model service for its entity) | Skill **rockets-custom-code** + [SDK_SERVICES_GUIDE.md](./SDK_SERVICES_GUIDE.md) | — |
 
 ### **🏭 Phase 3: Business Logic Implementation**
 

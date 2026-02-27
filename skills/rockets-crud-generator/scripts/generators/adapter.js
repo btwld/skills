@@ -15,7 +15,7 @@ function generateAdapter(config) {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TypeOrmCrudAdapter } from '@concepta/nestjs-crud';
-import { ${entityName}Entity } from '../../entities/${kebabName}.entity';
+import { ${entityName}Entity } from './entities/${kebabName}.entity';
 
 @Injectable()
 export class ${entityName}TypeOrmCrudAdapter extends TypeOrmCrudAdapter<${entityName}Entity> {

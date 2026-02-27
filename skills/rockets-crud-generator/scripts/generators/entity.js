@@ -5,6 +5,7 @@
 
 const { mapTypeToColumn, getRelationDecorators } = require('../lib/type-mappings');
 const { toPascalCase, toCamelCase } = require('../lib/name-utils');
+const { SDK_ENTITY_IMPORT_PATHS } = require('../lib/config-parser');
 
 /**
  * Generate TypeORM entity file content
@@ -25,11 +26,16 @@ function generateEntity(config) {
     if (joinColumn) {
       typeormImports.add('JoinColumn');
     }
-    // Add entity import
-    entityImports.push({
-      name: `${rel.targetEntity}Entity`,
-      path: `./${config.kebabName === rel.targetKebab ? rel.targetKebab : rel.targetKebab}.entity`,
-    });
+    // Add entity import — skip self-referential relations (same entity)
+    if (rel.targetEntity !== config.entityName) {
+      const sdkPath = SDK_ENTITY_IMPORT_PATHS[rel.targetEntity];
+      entityImports.push({
+        name: `${rel.targetEntity}Entity`,
+        // SDK entities: use SDK_ENTITY_IMPORT_PATHS (already relative from src/modules/<entity>/entities/)
+        // Non-SDK entities: cross-module reference ../../<target>/entities/<target>.entity
+        path: sdkPath || `../../${rel.targetKebab}/entities/${rel.targetKebab}.entity`,
+      });
+    }
   }
 
   // Add Unique if needed
@@ -122,9 +128,13 @@ function generateColumn(field) {
     options.push('unique: true');
   }
 
-  // Default value
+  // Default value (strip existing quotes to prevent double-wrap from plan.json)
   if (field.default !== undefined) {
-    const defaultVal = typeof field.default === 'string' ? `'${field.default}'` : field.default;
+    let rawDefault = field.default;
+    if (typeof rawDefault === 'string') {
+      rawDefault = rawDefault.replace(/^'(.*)'$/, '$1');
+    }
+    const defaultVal = typeof rawDefault === 'string' ? `'${rawDefault}'` : rawDefault;
     options.push(`default: ${defaultVal}`);
   }
 

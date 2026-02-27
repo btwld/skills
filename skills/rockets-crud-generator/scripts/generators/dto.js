@@ -7,12 +7,25 @@ const { getValidators, getValidatorImports, mapTypeToTs } = require('../lib/type
 const { toPascalCase, toCamelCase } = require('../lib/name-utils');
 
 /**
+ * Escape single quotes inside a string to prevent breaking TS string literals
+ * @param {string} str - Input string
+ * @returns {string} Escaped string
+ */
+function escapeSingleQuotes(str) {
+  if (typeof str !== 'string') return str;
+  return str.replace(/'/g, "\\'");
+}
+
+/**
  * Generate main DTO file content
  * @param {Object} config - Parsed configuration
  * @returns {string} Generated DTO file content
  */
 function generateDto(config) {
   const { entityName, fields, relations } = config;
+
+  // Filter out sdkManaged relations for nested DTO fields (FK columns stay for ALL)
+  const ownedRelations = relations.filter(r => !r.sdkManaged);
 
   // Collect validator imports from custom fields only
   const validatorNames = new Set();
@@ -34,21 +47,21 @@ function generateDto(config) {
     validatorNames.add('IsUUID');
   }
 
-  // Check if we need Type decorator for relations
-  const hasRelations = relations.length > 0;
+  // Check if we need Type decorator for owned (non-sdkManaged) relations
+  const hasOwnedRelations = ownedRelations.length > 0;
 
   // Build imports
   const imports = [];
 
   // class-transformer imports (Exclude at class level for safe serialization)
   const transformerImports = ['Expose', 'Exclude'];
-  if (hasRelations) {
+  if (hasOwnedRelations) {
     transformerImports.push('Type');
   }
   imports.push(`import { ${transformerImports.join(', ')} } from 'class-transformer';`);
 
-  // class-validator imports (add ValidateNested when there are relations)
-  if (hasRelations) {
+  // class-validator imports (add ValidateNested when there are owned relations)
+  if (hasOwnedRelations) {
     validatorNames.add('ValidateNested');
   }
   if (validatorNames.size > 0) {
@@ -64,8 +77,8 @@ function generateDto(config) {
   // interface import
   imports.push(`import { ${entityName}Interface } from '../interfaces/${config.kebabName}.interface';`);
 
-  // relation DTO imports
-  for (const rel of relations) {
+  // relation DTO imports (only for non-sdkManaged relations)
+  for (const rel of ownedRelations) {
     imports.push(`import { ${rel.targetEntity}Dto } from '../../${rel.targetKebab}/dtos/${rel.targetKebab}.dto';`);
     imports.push(`import { ${rel.targetEntity}Interface } from '../../${rel.targetKebab}/interfaces/${rel.targetKebab}.interface';`);
   }
@@ -92,8 +105,8 @@ function generateDto(config) {
     }
   }
 
-  // Relation fields
-  for (const rel of relations) {
+  // Nested relation fields (only for non-sdkManaged relations)
+  for (const rel of ownedRelations) {
     fieldDefs.push(generateRelationFieldDefinition(rel));
   }
 
@@ -125,18 +138,16 @@ function generateFieldDefinition(field) {
 
   // @ApiProperty or @ApiPropertyOptional
   const apiOptions = [];
-  if (apiDescription) apiOptions.push(`description: '${apiDescription}'`);
+  if (apiDescription) apiOptions.push(`description: '${escapeSingleQuotes(apiDescription)}'`);
   if (apiExample !== undefined) {
-    const exampleVal = typeof apiExample === 'string' ? `'${apiExample}'` : apiExample;
+    const exampleVal = typeof apiExample === 'string' ? `'${escapeSingleQuotes(apiExample)}'` : apiExample;
     apiOptions.push(`example: ${exampleVal}`);
   }
   if (maxLength) apiOptions.push(`maxLength: ${maxLength}`);
   if (minLength) apiOptions.push(`minLength: ${minLength}`);
   if (enumValues && enumValues.length > 0) {
-    // If there's an enum name, reference it; otherwise use inline array
-    if (enumName) {
-      apiOptions.push(`enum: ${enumName}`);
-    }
+    // Use inline array for Swagger enum documentation (no TS enum is generated)
+    apiOptions.push(`enum: [${enumValues.map(v => `'${v}'`).join(', ')}]`);
   }
 
   const apiDecorator = required ? 'ApiProperty' : 'ApiPropertyOptional';
