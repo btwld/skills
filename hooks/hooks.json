@@ -1,0 +1,108 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\.(md|txt)$\" && !(tool_input.file_path matches \"(CLAUDE|AGENTS|SKILL|README|CHANGELOG)\")",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Hook] Avoid creating documentation files unless explicitly requested. Prefer editing existing files.' >&2 && exit 1"
+          }
+        ],
+        "description": "Block creation of random documentation files"
+      },
+      {
+        "matcher": "tool == \"Bash\" && tool_input.command matches \"git (push.*(--force|-f)|reset --hard|checkout \\.|clean -f|branch -D)\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Hook] Destructive git commands require explicit user permission.' >&2 && exit 1"
+          }
+        ],
+        "description": "Block destructive git commands"
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\.module\\.ts$\" && tool_input.new_string matches \"ACCESS_CONTROL_MODULE_SETTINGS_TOKEN|provide:\\s*AccessControlService\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Quality Gate] Do NOT add ACL workaround providers to feature modules. Register access query services via queryServices in AccessControlModule config.' >&2 && exit 2"
+          }
+        ],
+        "description": "Block ACL workaround providers in feature modules"
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\.(service|controller)\\.ts$\" && !(tool_input.file_path matches \"typeorm-crud\\.adapter\\.ts$\") && tool_input.new_string matches \"@InjectRepository\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Quality Gate] @InjectRepository is only allowed in *-typeorm-crud.adapter.ts. Use @InjectDynamicRepository in model/access-query services instead.' >&2 && exit 2"
+          }
+        ],
+        "description": "Block @InjectRepository outside adapter files"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\.(ts|tsx)$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Reminder] Run yarn build to verify TypeScript compilation after edits.' >&2"
+          }
+        ],
+        "description": "Remind to check TypeScript after edits"
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"app\\.acl\\.ts$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Security] ACL rules modified. Verify all roles have correct permissions for all resources.' >&2"
+          }
+        ],
+        "description": "Security reminder when ACL is modified"
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"access-query\\.service\\.ts$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Security] Access Query Service modified. Verify ownership checks and default-deny logic.' >&2"
+          }
+        ],
+        "description": "Security reminder when Access Query Service is modified"
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"-status\\.service\\.ts$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Business Logic] Status service modified. Verify transition map is complete — all states have defined allowed transitions.' >&2"
+          }
+        ],
+        "description": "Reminder to verify state machine transition map completeness"
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"-workflow\\.service\\.ts$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Business Logic] Workflow service modified. Verify service injects model services, not repositories.' >&2"
+          }
+        ],
+        "description": "Reminder to verify workflow service uses model services"
+      },
+      {
+        "matcher": "tool == \"Bash\" && tool_input.command matches \"integrate\\.js\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Post-Integration] Run validate.js to verify structural integrity after integration.' >&2"
+          }
+        ],
+        "description": "Remind to validate after running integrate.js"
+      }
+    ]
+  }
+}

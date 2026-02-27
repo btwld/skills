@@ -1,0 +1,8 @@
+{
+  "name": "missing-dynamic-token",
+  "private": true,
+  "dependencies": {
+    "@bitwild/rockets-server": "*",
+    "@concepta/nestjs-typeorm-ext": "*"
+  }
+}

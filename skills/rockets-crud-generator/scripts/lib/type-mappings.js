@@ -34,9 +34,8 @@ function mapTypeToColumn(field) {
 function mapTypeToTs(field) {
   const { type, enumValues, enumName } = field;
 
-  if (type === 'enum' && enumName) {
-    return enumName;
-  }
+  // Enum fields use string type — the enum name is only for documentation (Swagger).
+  // Validation is handled by @IsIn() decorator, not by a TS enum definition.
 
   const mappings = {
     string: 'string',
@@ -75,7 +74,11 @@ function getValidators(field) {
       if (required) validators.push('IsNotEmpty()');
       if (minLength) validators.push(`MinLength(${minLength})`);
       if (maxLength) validators.push(`MaxLength(${maxLength})`);
-      if (pattern) validators.push(`Matches(/${pattern}/)`);
+      if (pattern) {
+        // Escape forward slashes in user-supplied pattern before embedding in regex literal
+        const escapedPattern = pattern.replace(/\//g, '\\/');
+        validators.push(`Matches(/${escapedPattern}/)`);
+      }
       break;
 
     case 'number':

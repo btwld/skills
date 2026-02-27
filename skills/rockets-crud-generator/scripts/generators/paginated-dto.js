@@ -11,31 +11,19 @@
 function generatePaginatedDto(config) {
   const { entityName, kebabName } = config;
 
-  return `import { Exclude, Expose, Type } from 'class-transformer';
+  return `import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { CrudResponsePaginatedDto } from '@concepta/nestjs-crud';
 import { ${entityName}Dto } from './${kebabName}.dto';
 
 /**
  * DTO for paginated ${entityName.toLowerCase()} responses.
+ * Extends CrudResponsePaginatedDto which provides: count, limit, total, page, pageCount.
  */
-@Exclude()
-export class ${entityName}PaginatedDto {
-  @Expose()
-  @ApiProperty({ type: [${entityName}Dto] })
+export class ${entityName}PaginatedDto extends CrudResponsePaginatedDto<${entityName}Dto> {
+  @ApiProperty({ type: ${entityName}Dto, isArray: true })
   @Type(() => ${entityName}Dto)
-  data!: ${entityName}Dto[];
-
-  @Expose()
-  @ApiProperty({ description: 'Total count of records' })
-  count!: number;
-
-  @Expose()
-  @ApiProperty({ description: 'Current page number' })
-  page!: number;
-
-  @Expose()
-  @ApiProperty({ description: 'Number of records per page' })
-  pageCount!: number;
+  declare data: ${entityName}Dto[]; // 'declare' avoids TS2612 — base class defines 'data'
 }
 `;
 }

@@ -7,6 +7,16 @@ const { getValidators, getValidatorImports, mapTypeToTs } = require('../lib/type
 const { toPascalCase, toCamelCase } = require('../lib/name-utils');
 
 /**
+ * Escape single quotes inside a string to prevent breaking TS string literals
+ * @param {string} str - Input string
+ * @returns {string} Escaped string
+ */
+function escapeSingleQuotes(str) {
+  if (typeof str !== 'string') return str;
+  return str.replace(/'/g, "\\'");
+}
+
+/**
  * Generate main DTO file content
  * @param {Object} config - Parsed configuration
  * @returns {string} Generated DTO file content
@@ -14,8 +24,11 @@ const { toPascalCase, toCamelCase } = require('../lib/name-utils');
 function generateDto(config) {
   const { entityName, fields, relations } = config;
 
-  // Collect validator imports
-  const validatorNames = new Set(['IsUUID', 'IsDate', 'IsNumber', 'IsOptional']);
+  // Filter out sdkManaged relations for nested DTO fields (FK columns stay for ALL)
+  const ownedRelations = relations.filter(r => !r.sdkManaged);
+
+  // Collect validator imports from custom fields only
+  const validatorNames = new Set();
   for (const field of fields) {
     const validators = getValidators(field);
     for (const v of validators) {
@@ -23,46 +36,55 @@ function generateDto(config) {
       validatorNames.add(name);
     }
   }
+  // Add IsOptional if any relation or optional FK exists
+  const hasOptionalFields = fields.some(f => !f.required) || relations.length > 0;
+  if (hasOptionalFields) {
+    validatorNames.add('IsOptional');
+  }
+  // Add IsUUID if any FK fields exist
+  const hasFKFields = relations.some(r => r.owner && r.type === 'manyToOne');
+  if (hasFKFields) {
+    validatorNames.add('IsUUID');
+  }
 
-  // Check if we need Type decorator for relations
-  const hasRelations = relations.length > 0;
+  // Check if we need Type decorator for owned (non-sdkManaged) relations
+  const hasOwnedRelations = ownedRelations.length > 0;
 
   // Build imports
   const imports = [];
 
-  // class-transformer imports
-  const transformerImports = ['Exclude', 'Expose'];
-  if (hasRelations) {
+  // class-transformer imports (Exclude at class level for safe serialization)
+  const transformerImports = ['Expose', 'Exclude'];
+  if (hasOwnedRelations) {
     transformerImports.push('Type');
   }
   imports.push(`import { ${transformerImports.join(', ')} } from 'class-transformer';`);
 
-  // class-validator imports
-  imports.push(`import {\n  ${Array.from(validatorNames).sort().join(',\n  ')},\n} from 'class-validator';`);
+  // class-validator imports (add ValidateNested when there are owned relations)
+  if (hasOwnedRelations) {
+    validatorNames.add('ValidateNested');
+  }
+  if (validatorNames.size > 0) {
+    imports.push(`import {\n  ${Array.from(validatorNames).sort().join(',\n  ')},\n} from 'class-validator';`);
+  }
 
   // swagger imports
   imports.push(`import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';`);
 
+  // CommonEntityDto import (provides id, dateCreated, dateUpdated, dateDeleted, version)
+  imports.push(`import { CommonEntityDto } from '@concepta/nestjs-common';`);
+
   // interface import
   imports.push(`import { ${entityName}Interface } from '../interfaces/${config.kebabName}.interface';`);
 
-  // relation DTO imports
-  for (const rel of relations) {
+  // relation DTO imports (only for non-sdkManaged relations)
+  for (const rel of ownedRelations) {
     imports.push(`import { ${rel.targetEntity}Dto } from '../../${rel.targetKebab}/dtos/${rel.targetKebab}.dto';`);
     imports.push(`import { ${rel.targetEntity}Interface } from '../../${rel.targetKebab}/interfaces/${rel.targetKebab}.interface';`);
   }
 
-  // Build field definitions
+  // Build field definitions (custom fields only — base fields come from CommonEntityDto)
   const fieldDefs = [];
-
-  // ID field (always first)
-  fieldDefs.push(`  @Expose()
-  @ApiProperty({
-    description: 'Unique identifier',
-    example: '550e8400-e29b-41d4-a716-446655440000',
-  })
-  @IsUUID()
-  id!: string;`);
 
   // Custom fields
   for (const field of fields) {
@@ -83,40 +105,19 @@ function generateDto(config) {
     }
   }
 
-  // Relation fields
-  for (const rel of relations) {
+  // Nested relation fields (only for non-sdkManaged relations)
+  for (const rel of ownedRelations) {
     fieldDefs.push(generateRelationFieldDefinition(rel));
   }
-
-  // Base entity fields
-  fieldDefs.push(`  @Expose()
-  @ApiProperty({ description: 'Date created' })
-  @IsDate()
-  dateCreated!: Date;`);
-
-  fieldDefs.push(`  @Expose()
-  @ApiProperty({ description: 'Date updated' })
-  @IsDate()
-  dateUpdated!: Date;`);
-
-  fieldDefs.push(`  @Expose()
-  @ApiPropertyOptional({ description: 'Date deleted' })
-  @IsOptional()
-  @IsDate()
-  dateDeleted?: Date | null;`);
-
-  fieldDefs.push(`  @Expose()
-  @ApiProperty({ description: 'Version number' })
-  @IsNumber()
-  version!: number;`);
 
   return `${imports.join('\n')}
 
 /**
  * ${entityName} DTO for API responses and requests.
+ * Extends CommonEntityDto which provides: id, dateCreated, dateUpdated, dateDeleted, version.
  */
 @Exclude()
-export class ${entityName}Dto implements ${entityName}Interface {
+export class ${entityName}Dto extends CommonEntityDto implements ${entityName}Interface {
 ${fieldDefs.join('\n\n')}
 }
 `;
@@ -137,18 +138,16 @@ function generateFieldDefinition(field) {
 
   // @ApiProperty or @ApiPropertyOptional
   const apiOptions = [];
-  if (apiDescription) apiOptions.push(`description: '${apiDescription}'`);
+  if (apiDescription) apiOptions.push(`description: '${escapeSingleQuotes(apiDescription)}'`);
   if (apiExample !== undefined) {
-    const exampleVal = typeof apiExample === 'string' ? `'${apiExample}'` : apiExample;
+    const exampleVal = typeof apiExample === 'string' ? `'${escapeSingleQuotes(apiExample)}'` : apiExample;
     apiOptions.push(`example: ${exampleVal}`);
   }
   if (maxLength) apiOptions.push(`maxLength: ${maxLength}`);
   if (minLength) apiOptions.push(`minLength: ${minLength}`);
   if (enumValues && enumValues.length > 0) {
-    // If there's an enum name, reference it; otherwise use inline array
-    if (enumName) {
-      apiOptions.push(`enum: ${enumName}`);
-    }
+    // Use inline array for Swagger enum documentation (no TS enum is generated)
+    apiOptions.push(`enum: [${enumValues.map(v => `'${v}'`).join(', ')}]`);
   }
 
   const apiDecorator = required ? 'ApiProperty' : 'ApiPropertyOptional';
@@ -185,6 +184,7 @@ function generateRelationFieldDefinition(relation) {
     description: '${targetEntity}',
   })`);
   lines.push(`  @Type(() => ${targetEntity}Dto)`);
+  lines.push(isArray ? '  @ValidateNested({ each: true })' : '  @ValidateNested()');
   lines.push('  @IsOptional()');
 
   const tsType = isArray ? `${targetEntity}Interface[]` : `${targetEntity}Interface`;

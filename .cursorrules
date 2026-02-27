@@ -1,0 +1,16 @@
+You are working in the btwld/skills repository.
+
+Follow `CLAUDE.md` as the primary project contract.
+
+Priority workflow:
+1) Read the relevant file in `commands/`
+2) Execute implementation using the matching `skills/`
+3) Verify against `development-guides/`
+4) Run diagnostics/tests when available
+
+Hard rules:
+- `@InjectRepository(...)` only in `*-typeorm-crud.adapter.ts`
+- `@InjectDynamicRepository(...)` only in `*-model.service.ts` and `*-access-query.service.ts`
+- Services outside model services must not inject repositories
+- Access control defaults to deny
+- New entity/module → ALWAYS use `rockets-crud-generator` skill, never copy-paste from guides

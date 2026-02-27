@@ -1,0 +1,37 @@
+{
+  "name": "rockets-sdk-config",
+  "version": "2.0.0",
+  "description": "Claude Code agents, commands, and hooks for Rockets SDK projects (NestJS + TypeORM + Concepta). References project guides — does not duplicate.",
+  "author": {
+    "name": "BTWLD",
+    "url": "https://github.com/btwld"
+  },
+  "homepage": "https://github.com/btwld/skills",
+  "repository": "https://github.com/btwld/skills",
+  "license": "MIT",
+  "keywords": [
+    "rockets-sdk",
+    "nestjs",
+    "typeorm",
+    "concepta",
+    "crud",
+    "access-control",
+    "agents",
+    "commands",
+    "hooks"
+  ],
+  "skills": [
+    "./skills/",
+    "./commands/"
+  ],
+  "agents": [
+    "./agents/rockets-planner.md",
+    "./agents/rockets-architect.md",
+    "./agents/rockets-code-reviewer.md",
+    "./agents/rockets-security-reviewer.md",
+    "./agents/rockets-build-resolver.md",
+    "./agents/rockets-module-generator.md",
+    "./agents/rockets-tdd-guide.md",
+    "./agents/rockets-auto-reviewer.md"
+  ]
+}
