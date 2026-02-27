@@ -1,8 +1,32 @@
 # Rockets SDK Skills
 
-A plugin that supercharges [Rockets SDK](https://github.com/btwld/rockets-starter) development with AI-powered code generation, review, diagnostics, and orchestration for NestJS + TypeORM + Concepta projects.
+A Claude Code plugin that supercharges [Rockets SDK](https://github.com/btwld/rockets-starter) development with AI-powered code generation, review, diagnostics, and orchestration for NestJS + TypeORM + Concepta projects.
 
-Works with **Claude Code**, **Cursor**, and **OpenAI Codex**.
+Also works with **Cursor** and **OpenAI Codex** (manual setup).
+
+## Table of Contents
+
+- [What It Does](#what-it-does)
+- [Installation](#installation)
+  - [Claude Code (Plugin)](#claude-code-plugin)
+  - [Auto-install for Teams](#auto-install-for-team-projects)
+  - [Cursor](#cursor)
+  - [OpenAI Codex](#openai-codex)
+  - [Manual (Any Agent)](#manual-installation-any-agent)
+- [Tutorial: Your First Project](#tutorial-your-first-project)
+  - [Step 1 — Bootstrap a Project](#step-1--bootstrap-a-project)
+  - [Step 2 — Generate Your First Module](#step-2--generate-your-first-module)
+  - [Step 3 — Add Access Control](#step-3--add-access-control)
+  - [Step 4 — Add Business Logic](#step-4--add-business-logic)
+  - [Step 5 — Review and Test](#step-5--review-and-test)
+- [Commands Reference](#commands-reference)
+- [Full Project from a Spec Document](#full-project-from-a-spec-document)
+- [Diagnosing Issues](#diagnosing-issues)
+- [What's Included](#whats-included)
+- [Architecture](#architecture)
+- [Agent Teams (Parallel Generation)](#agent-teams-parallel-generation)
+- [Mandatory Engineering Rules](#mandatory-engineering-rules)
+- [License](#license)
 
 ## What It Does
 
@@ -16,15 +40,17 @@ Instead of manually writing boilerplate for every NestJS module, this plugin giv
 
 ## Installation
 
-### Claude Code (Recommended)
+### Claude Code (Plugin)
 
-**Step 1:** Add the marketplace:
+> Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI.
+
+**1. Add the marketplace:**
 
 ```
 /plugin marketplace add btwld/skills
 ```
 
-**Step 2:** Install the plugin:
+**2. Install the plugin:**
 
 ```
 /plugin install rockets-sdk-config@btwld
@@ -32,11 +58,13 @@ Instead of manually writing boilerplate for every NestJS module, this plugin giv
 
 This registers all agents, commands, skills, and hooks in your Claude Code session.
 
-**Verify** it's installed:
+**3. Verify it's installed:**
 
 ```
 /plugin list
 ```
+
+You should see `rockets-sdk-config@btwld` with 8 commands, 9 agents, and 7 skills listed.
 
 **Uninstall:**
 
@@ -57,9 +85,9 @@ The plugin auto-updates when you start a new session. To force a reinstall:
 /plugin install rockets-sdk-config@btwld
 ```
 
-#### Auto-install for team projects
+### Auto-install for Team Projects
 
-Add this to your project's `.claude/settings.json` so teammates are prompted to install automatically:
+Add this to your project's `.claude/settings.json` so teammates are prompted to install automatically when they open the project:
 
 ```json
 {
@@ -85,7 +113,7 @@ Add this to your project's `.claude/settings.json` so teammates are prompted to 
 git clone https://github.com/btwld/skills.git .rockets-skills
 ```
 
-2. Add a `.cursorrules` file in your project root that points to the skills:
+2. Add a `.cursorrules` file in your project root:
 
 ```
 You are working on a Rockets SDK project (NestJS + TypeORM + Concepta).
@@ -155,19 +183,6 @@ Follow `.rockets-skills/CLAUDE.md` as the canonical project contract.
 Read .rockets-skills/commands/rockets-module.md and generate a Category entity for my project.
 ```
 
-4. For the generator scripts, Codex can run them directly:
-
-```bash
-# Generate a module
-node .rockets-skills/skills/rockets-crud-generator/scripts/generate.js '{"entityName":"Category","fields":[{"name":"name","type":"string","required":true}]}'
-
-# Integrate into project
-node .rockets-skills/skills/rockets-crud-generator/scripts/integrate.js --input output.json --project .
-
-# Validate
-node .rockets-skills/skills/rockets-crud-generator/scripts/validate.js --project . --build
-```
-
 ### Manual Installation (Any Agent)
 
 If you want to copy the files into your own structure:
@@ -181,54 +196,77 @@ cp CLAUDE.md /your-project/          # Project contract (all agents read this)
 cp AGENTS.md /your-project/          # Codex entrypoint
 cp .cursorrules /your-project/       # Cursor entrypoint
 
-# Copy agents (AI role behaviors)
+# Copy agents, commands, skills, guides
 cp -r agents/ /your-project/.rockets-skills/agents/
-
-# Copy commands (slash command playbooks)
 cp -r commands/ /your-project/.rockets-skills/commands/
-
-# Copy skills (executable generators and tools)
 cp -r skills/ /your-project/.rockets-skills/skills/
-
-# Copy development guides (reference docs)
 cp -r development-guides/ /your-project/.rockets-skills/development-guides/
 
 # Copy hooks (Claude Code quality guardrails — only works with Claude Code)
 cp hooks/hooks.json /your-project/.claude/settings.local.json
 ```
 
-> **Note:** Manual installation requires you to update manually when new versions are released. The Claude Code plugin method handles updates automatically.
+> Manual installation requires you to update manually when new versions are released. The Claude Code plugin method handles updates automatically.
 
-## Quick Start
+---
 
-### 1. Set Up a New Project
+## Tutorial: Your First Project
 
-```bash
-# Bootstrap from rockets-starter template
-node skills/rockets-project-bootstrap/scripts/bootstrap.js \
-  --repo git@github.com:btwld/rockets-starter.git \
-  --dest ../my-rockets-app \
-  --install --run-build --run-test
+This walkthrough takes you from zero to a working Rockets API with CRUD, access control, and business logic.
+
+### Step 1 — Bootstrap a Project
+
+Start from the rockets-starter template:
+
+**Claude Code:**
+
+```
+Ask Claude: "Bootstrap a new Rockets project at ../my-app"
 ```
 
-### 2. Generate a Module
+Claude will run the bootstrap skill, which clones the starter, installs dependencies, and runs the initial build.
 
-**Claude Code** (slash commands):
+**CLI (direct):**
+
+```bash
+node skills/rockets-project-bootstrap/scripts/bootstrap.js \
+  --repo git@github.com:btwld/rockets-starter.git \
+  --dest ../my-app \
+  --install --run-build
+```
+
+Then `cd ../my-app` and make sure the plugin is installed (see [Installation](#claude-code-plugin)).
+
+### Step 2 — Generate Your First Module
+
+Let's generate a `Category` entity with two fields.
+
+**Claude Code:**
 
 ```
 /rockets-module Category
 ```
 
-**Cursor / Codex** (reference the command file):
+Claude will ask you about fields, relations, and ACL. For a quick start:
+
+```
+Fields: name (string, required), description (text, optional)
+Relations: none
+ACL: Admin has full access
+```
+
+This generates 12+ files: entity, interfaces, DTOs, adapter, model service, CRUD service, controller, module, and access query service. It also wires the module into `app.module.ts`, registers the entity in `typeorm.settings.ts`, and adds ACL rules to `app.acl.ts`.
+
+**Cursor / Codex:**
 
 ```
 Read commands/rockets-module.md and generate a Category entity with fields: name (string, required), description (text, optional)
 ```
 
-**CLI** (direct script execution):
+**CLI (direct):**
 
 ```bash
-# Step 1: Generate files
+# Generate the module files
 node skills/rockets-crud-generator/scripts/generate.js '{
   "entityName": "Category",
   "fields": [
@@ -237,31 +275,119 @@ node skills/rockets-crud-generator/scripts/generate.js '{
   ]
 }' > /tmp/category-output.json
 
-# Step 2: Write files + wire into project
+# Integrate into your project (writes files + wires imports)
 node skills/rockets-crud-generator/scripts/integrate.js \
   --input /tmp/category-output.json \
   --project /path/to/your/project
 
-# Step 3: Validate
+# Validate the generated code
 node skills/rockets-crud-generator/scripts/validate.js \
   --project /path/to/your/project --build
 ```
 
-### 3. Generate Full Project from Spec
+### Step 3 — Add Access Control
+
+Configure role-based access for the module:
 
 **Claude Code:**
 
 ```
-/rockets-from-doc
+/rockets-acl Category
 ```
+
+This sets up ACL rules. You can specify:
+- Which roles (Admin, User, etc.) can access which operations (create, read, update, delete)
+- Whether any role has **own-scope** access (users can only see/edit their own records)
 
 **Cursor / Codex:**
 
 ```
-Read commands/rockets-from-doc.md and generate the project from my PRD document at docs/PRD.md
+Read commands/rockets-acl.md and configure ACL for Category — Admin has full access, User has read-only
 ```
 
-**CLI** (orchestrator for batch generation):
+### Step 4 — Add Business Logic
+
+For entities that need more than CRUD (state machines, workflows, events):
+
+**Claude Code:**
+
+```
+/rockets-business-logic
+```
+
+Describe what you need:
+- "Category should have a status field with draft → published → archived transitions"
+- "Send a notification when a Category is published"
+
+**Cursor / Codex:**
+
+```
+Read commands/rockets-business-logic.md and add a status workflow to Category: draft → published → archived
+```
+
+### Step 5 — Review and Test
+
+**Code review** against the 9 mandatory engineering rules:
+
+```
+/rockets-review
+```
+
+**Run tests** using the TDD guide:
+
+```
+/rockets-test CategoryModule
+```
+
+**Build and verify:**
+
+```bash
+yarn build
+```
+
+---
+
+## Commands Reference
+
+Slash commands are the primary interface for Claude Code. For Cursor/Codex, reference the command files directly (e.g., `commands/rockets-module.md`).
+
+| Command | Purpose | When to Use |
+|---------|---------|-------------|
+| `/rockets-plan` | Plan a feature with architecture decisions | Before starting a new feature or major change |
+| `/rockets-module` | Generate a CRUD module (12+ files) | When you need a new entity with full CRUD |
+| `/rockets-acl` | Configure access control for an entity | After generating a module, to set role permissions |
+| `/rockets-business-logic` | Add post-CRUD logic (state machines, workflows, events) | When an entity needs behavior beyond CRUD |
+| `/rockets-from-doc` | Generate an entire project from a spec document | Starting a project from a PRD/RFC/spec |
+| `/rockets-review` | Code review against SDK standards | Before merging, after generating modules |
+| `/rockets-test` | TDD workflow for Rockets modules | When writing or verifying tests |
+| `/rockets-build-fix` | Diagnose and fix build/runtime errors | When the build breaks or you get runtime errors |
+
+## Full Project from a Spec Document
+
+The most powerful workflow — go from a requirements document to a working project in one command:
+
+**Claude Code:**
+
+```
+/rockets-from-doc docs/PRD.md
+```
+
+**What happens:**
+
+1. Claude reads your spec and extracts all entities, fields, relations, and roles
+2. Plans the generation order using topological sort (respecting entity dependencies)
+3. Generates entities in waves — independent entities first, then those with relations
+4. Wires everything into the project (modules, TypeORM, ACL)
+5. Validates each wave before proceeding
+6. Runs a final build + smoke test
+
+**Cursor / Codex:**
+
+```
+Read commands/rockets-from-doc.md and generate the project from docs/PRD.md
+```
+
+**CLI (orchestrator for batch generation):**
 
 ```bash
 node skills/rockets-orchestrator/scripts/orchestrate.js \
@@ -269,21 +395,37 @@ node skills/rockets-orchestrator/scripts/orchestrate.js \
   --project /path/to/your/project
 ```
 
-### 4. Follow the Workflow
+## Diagnosing Issues
+
+When things go wrong, use the diagnostic tools:
+
+```bash
+# Static diagnostics (no build required)
+node skills/rockets-runtime-diagnostics/scripts/diagnose.js /path/to/project
+
+# With build + test verification
+node skills/rockets-runtime-diagnostics/scripts/diagnose.js /path/to/project --run-build --run-tests
+
+# Smoke test all CRUD endpoints (starts the app, creates a user, tests each endpoint)
+node skills/rockets-runtime-diagnostics/scripts/smoke-test-endpoints.js /path/to/project
+
+# Validate generated code structure
+node skills/rockets-crud-generator/scripts/validate.js --project /path/to/project --build
+```
+
+**Claude Code:**
 
 ```
-/rockets-plan    → Plan the feature
-/rockets-module  → Generate CRUD module
-/rockets-acl     → Configure access control
-/rockets-test    → Run TDD workflow
-/rockets-review  → Code review against SDK standards
+/rockets-build-fix
 ```
+
+Claude will read the error output, diagnose the issue, and fix it automatically.
+
+---
 
 ## What's Included
 
 ### Commands (8)
-
-Slash commands are the primary interface for Claude Code. For Cursor and Codex, reference the command files directly.
 
 | Command | File | Purpose |
 |---------|------|---------|
@@ -296,7 +438,7 @@ Slash commands are the primary interface for Claude Code. For Cursor and Codex, 
 | `/rockets-test` | `commands/rockets-test.md` | TDD workflow for Rockets modules |
 | `/rockets-build-fix` | `commands/rockets-build-fix.md` | Diagnose and fix build/runtime errors |
 
-### Agents (8)
+### Agents (9)
 
 Agents are AI role specs invoked by commands. You typically don't call these directly.
 
@@ -310,8 +452,9 @@ Agents are AI role specs invoked by commands. You typically don't call these dir
 | `rockets-security-reviewer` | Audits ACL, guards, and auth configuration |
 | `rockets-build-resolver` | Diagnoses and fixes build errors |
 | `rockets-tdd-guide` | Guides TDD for Rockets projects |
+| `rockets-custom-endpoints` | *(Deprecated)* — Use `rockets-business-logic` skill instead |
 
-### Skills (7)
+### Skills (8)
 
 Skills are executable tools with scripts. They work with any agent — Claude, Cursor, or Codex can run the scripts directly.
 
@@ -324,27 +467,35 @@ Skills are executable tools with scripts. They work with any agent — Claude, C
 | `rockets-custom-code` | Rules for non-CRUD logic with correct service boundaries | (guide-driven) |
 | `rockets-runtime-diagnostics` | Executable diagnostics for runtime/build/ACL errors | `scripts/diagnose.js` |
 | `rockets-project-bootstrap` | Bootstraps a new Rockets project | `scripts/bootstrap.js` |
+| `rockets-testing-patterns` | *(Deprecated)* — Use `rockets-tdd-guide` agent instead | — |
 
 ### Hooks (Quality Guardrails)
 
 Hooks run automatically in Claude Code to enforce standards. For Cursor/Codex, the rules are enforced via `CLAUDE.md` and agent instructions.
 
-| Hook | When | What It Does |
-|------|------|-------------|
-| Block random docs | Before writing `.md` files | Prevents unnecessary documentation files |
-| Block destructive git | Before `git push --force`, `reset --hard`, etc. | Protects against accidental data loss |
-| Block ACL workarounds | Before editing `.module.ts` | Prevents incorrect ACL provider registration |
-| Block `@InjectRepository` | Before editing services/controllers | Ensures repositories are only injected in adapter files |
-| TypeScript reminder | After editing `.ts` files | Reminds to run build verification |
-| ACL security check | After editing `app.acl.ts` | Alerts to verify role permissions |
-| Access query check | After editing access query services | Alerts to verify ownership checks |
-| State machine check | After editing status services | Reminds to verify transition maps |
-| Workflow check | After editing workflow services | Reminds to verify model service usage |
-| Post-integration check | After running `integrate.js` | Reminds to run validation |
+**Pre-tool hooks** (block bad patterns before they happen):
+
+| Hook | What It Blocks |
+|------|---------------|
+| Block random docs | Prevents creating unnecessary `.md`/`.txt` files |
+| Block destructive git | Stops `git push --force`, `reset --hard`, `clean -f`, etc. |
+| Block ACL workarounds | Prevents incorrect ACL provider registration in feature modules |
+| Block `@InjectRepository` | Ensures `@InjectRepository` is only used in adapter files |
+
+**Post-tool hooks** (reminders after changes):
+
+| Hook | What It Reminds |
+|------|----------------|
+| TypeScript reminder | Run `yarn build` after `.ts` edits |
+| ACL security check | Verify role permissions after `app.acl.ts` changes |
+| Access query check | Verify ownership checks after access query service changes |
+| State machine check | Verify transition maps after status service changes |
+| Workflow check | Verify model service usage after workflow service changes |
+| Post-integration | Run `validate.js` after `integrate.js` |
 
 ### Development Guides (12)
 
-Reference documentation for Rockets SDK patterns. These work with any AI agent — point your agent to the relevant guide.
+Reference documentation for Rockets SDK patterns. Point your agent to the relevant guide.
 
 | Guide | Topic |
 |-------|-------|
@@ -360,6 +511,8 @@ Reference documentation for Rockets SDK patterns. These work with any AI agent �
 | `SDK_SERVICES_GUIDE.md` | Concepta SDK service reference |
 | `ROCKETS_PACKAGES_GUIDE.md` | Rockets package reference |
 | `CONCEPTA_PACKAGES_GUIDE.md` | Concepta package reference |
+
+---
 
 ## Architecture
 
@@ -385,7 +538,7 @@ User → Command → Agent → Skill → Generated Code
 | Cursor | `.cursorrules` | Files you reference with `@` or add to context |
 | Codex | `AGENTS.md` | Files you reference in prompts or that it discovers via AGENTS.md |
 
-### Agent Teams (Parallel Generation)
+## Agent Teams (Parallel Generation)
 
 For large projects (3+ entities), Claude Code can auto-form agent teams for parallel generation:
 
@@ -422,90 +575,6 @@ These rules are enforced by the plugin (via hooks, agents, and validation script
 7. State machine services must enforce transition maps — no direct status updates
 8. Workflow services use model services for entity access (except `DataSource.transaction()`)
 9. Notification services must create audit records before dispatching
-
-## Using with rockets-starter
-
-### Claude Code
-
-```bash
-# 1. Bootstrap project
-node skills/rockets-project-bootstrap/scripts/bootstrap.js \
-  --repo git@github.com:btwld/rockets-starter.git \
-  --dest ../my-app --install
-
-# 2. Install plugin (inside Claude Code)
-/plugin marketplace add btwld/skills
-/plugin install rockets-sdk-config@btwld
-
-# 3. Generate from spec
-/rockets-from-doc
-```
-
-### Cursor
-
-```bash
-# 1. Clone starter + skills
-git clone git@github.com:btwld/rockets-starter.git my-app
-cd my-app
-git clone https://github.com/btwld/skills.git .rockets-skills
-
-# 2. Add .cursorrules (see Installation section above)
-
-# 3. Open in Cursor, then in chat:
-@.rockets-skills/commands/rockets-from-doc.md generate the project from @docs/PRD.md
-```
-
-### Codex
-
-```bash
-# 1. Clone starter + skills
-git clone git@github.com:btwld/rockets-starter.git my-app
-cd my-app
-git clone https://github.com/btwld/skills.git .rockets-skills
-
-# 2. Add AGENTS.md (see Installation section above)
-
-# 3. Prompt Codex:
-Read .rockets-skills/commands/rockets-from-doc.md and generate the project from docs/PRD.md
-```
-
-## Recommended Workflow
-
-### New Project (End-to-End)
-
-```
-1. Bootstrap project  →  rockets-project-bootstrap skill
-2. Provide spec doc   →  /rockets-from-doc (or reference commands/rockets-from-doc.md)
-   (generates all entities, ACL, validation in dependency order)
-3. Add business logic →  /rockets-business-logic
-4. Review             →  /rockets-review
-```
-
-### Single Feature
-
-```
-1. Plan       →  /rockets-plan <Feature>
-2. Generate   →  /rockets-module <Entity>
-3. ACL        →  /rockets-acl <Entity>
-4. Test       →  /rockets-test <EntityModule>
-5. Review     →  /rockets-review
-```
-
-### Diagnose Issues
-
-```bash
-# Static diagnostics
-node skills/rockets-runtime-diagnostics/scripts/diagnose.js /path/to/project
-
-# With build + test verification
-node skills/rockets-runtime-diagnostics/scripts/diagnose.js /path/to/project --run-build --run-tests
-
-# Smoke test all CRUD endpoints
-node skills/rockets-runtime-diagnostics/scripts/smoke-test-endpoints.js /path/to/project
-
-# Validate generated code structure
-node skills/rockets-crud-generator/scripts/validate.js --project /path/to/project --build
-```
 
 ## License
 
