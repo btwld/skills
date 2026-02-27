@@ -22,6 +22,16 @@
   ],
   "skills": "./skills/",
   "commands": "./commands/",
-  "agents": "./agents/",
+  "agents": [
+    "./agents/rockets-architect.md",
+    "./agents/rockets-auto-reviewer.md",
+    "./agents/rockets-build-resolver.md",
+    "./agents/rockets-code-reviewer.md",
+    "./agents/rockets-custom-endpoints.md",
+    "./agents/rockets-module-generator.md",
+    "./agents/rockets-planner.md",
+    "./agents/rockets-security-reviewer.md",
+    "./agents/rockets-tdd-guide.md"
+  ],
   "hooks": "./hooks/hooks.json"
 }
