@@ -1,4 +1,5 @@
 ---
+name: rockets-review
 description: Review code changes against Rockets SDK patterns, access control, and NestJS best practices. Checks module structure, DTOs, security, and TypeScript quality.
 ---
 

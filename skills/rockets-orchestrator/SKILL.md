@@ -103,6 +103,7 @@ Teammates communicate directly — Reviewer sends fixes to Generator without goi
 | Script | Purpose | Tokens |
 |--------|---------|--------|
 | `orchestrate.js` | Batch generation with waves + migration (sequential fallback) | 0 |
+| `check-sbvr-coverage.js` | Read/update `.rockets/sbvr-rules.json` coverage registry — `--pending`, `--mark-implemented`, report | 0 |
 
 ## Options
 

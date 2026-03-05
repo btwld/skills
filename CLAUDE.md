@@ -34,11 +34,11 @@ This repository is organized to work consistently across AI coding agents (Claud
 | `/rockets-plan` | `rockets-planner` | (planning only; guide-driven) |
 | `/rockets-module` | `rockets-module-generator` | `rockets-crud-generator`, `rockets-access-control` |
 | `/rockets-acl` | (default executor) | `rockets-access-control` |
-| `/rockets-business-logic` | `rockets-architect` or `rockets-planner` (as needed) | `rockets-business-logic`, `rockets-custom-code` |
+| `/rockets-business-logic` | `rockets-architect` or `rockets-planner` (as needed) | `rockets-business-logic` |
 | `/rockets-test` | `rockets-tdd-guide` | (testing via `development-guides/TESTING_GUIDE.md`) |
 | `/rockets-review` | `rockets-code-reviewer`, `rockets-auto-reviewer` (haiku) | (review via guides) |
 | `/rockets-build-fix` | `rockets-build-resolver` | `rockets-runtime-diagnostics` |
-| `/rockets-from-doc` | `rockets-planner` + Agent Teams (or sequential fallback) | `rockets-orchestrator`, `rockets-crud-generator`, all relevant skills |
+| `/rockets-from-doc` | `rockets-planner` + Agent Teams (or sequential fallback) | `rockets-orchestrator`, `rockets-crud-generator`, `rockets-business-logic`, `rockets-migration`, `rockets-seeder` |
 
 ## Agent Teams (Auto-Formation)
 
@@ -87,7 +87,6 @@ New project setup       → rockets-project-bootstrap skill
 New entity / CRUD       → /rockets-module (uses rockets-crud-generator)
                           then: /rockets-acl, /rockets-test, /rockets-review
 Business logic / non-CRUD → /rockets-business-logic (uses rockets-business-logic skill)
-                             For simple cases: rockets-custom-code skill directly
 Build/runtime error     → /rockets-build-fix + rockets-runtime-diagnostics
 Full project from spec  → /rockets-from-doc (uses rockets-orchestrator + Agent Teams)
 Architecture/planning   → /rockets-plan
@@ -104,9 +103,7 @@ NEVER: Read a guide to copy-paste module code. Use the generator.
 ### Current Deprecations
 
 1. `agents/rockets-custom-endpoints.md`
-   Replacement: `skills/rockets-business-logic/SKILL.md` + `skills/rockets-custom-code/SKILL.md`.
-2. `skills/rockets-testing-patterns/SKILL.md`
-   Replacement: `agents/rockets-tdd-guide.md` + `development-guides/TESTING_GUIDE.md`.
+   Replacement: `skills/rockets-business-logic/SKILL.md`.
 
 ## Mandatory Engineering Rules
 
@@ -127,7 +124,7 @@ Do not duplicate policy across agent-specific files. Keep shared rules in this f
 ## Decision Enforcement
 
 - "New entity/module" → ALWAYS use `rockets-crud-generator` skill (or `/rockets-module`)
-- "Business logic / non-CRUD" → `/rockets-business-logic` (or `rockets-custom-code` skill for simple cases)
+- "Business logic / non-CRUD" → `/rockets-business-logic`
 - "New project" → Use `rockets-project-bootstrap` skill
 - Guides are for understanding patterns, NEVER for copying module code
 

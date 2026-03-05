@@ -28,6 +28,35 @@ You are an expert planning specialist for **Rockets SDK** projects.
 6. **Generate `plan.json`** — machine-readable spec for `orchestrate.js`
 7. **Present plan and WAIT** for user confirmation
 
+## Gap Detection + Q&A Phase
+
+After extracting rules from the spec, BEFORE writing plan.json:
+
+1. **Scan for gaps** using these triggers:
+   - Any rule of type `background-job`, `notification`, `file-upload`, `api-integration`, `real-time`, `search`, `caching`, `outbound-webhook` → check if the spec specifies the technology/provider. If not → Q&A required.
+   - Any rule with vague trigger/condition language ("when appropriate", "if needed", "validate properly", "as necessary") → Q&A required.
+   - Any state machine without defined behavior on entity deletion → Q&A required.
+   - Any notification rule without specified retry policy → Q&A required.
+   - Any spec that implies initial data (roles, lookup tables, reference data) → seeder Q&A required.
+
+2. **Generate questions** from `development-guides/SPEC_GAP_QUESTIONS.md` templates. Use the exact templates and option sets from that guide.
+
+3. **Ask all questions in ONE message** (never one at a time). Format per `SPEC_GAP_QUESTIONS.md` Section E. Mark each as REQUIRED (blocking) or OPTIONAL (has a safe default).
+
+4. **Wait for user answers.** Do not proceed to plan.json until answers are received.
+
+5. **Incorporate answers** into rule descriptions and plan.json fields BEFORE writing the files:
+   - Technology choice → add `technology` field to the matching rule in sbvr-rules.json
+   - Ambiguous rule clarification → update rule `description` with the clarified behavior
+   - Edge case answer → add `edgeCases` array to the rule in sbvr-rules.json
+   - Seeder answer → add `seeder` section to plan.json root
+
+6. **If answers introduce new gaps** (e.g., user says "use bull" which implies Redis — is Redis available?): ask ONE follow-up batch in round 2. Maximum 2 rounds of Q&A total. Do not ask a third round.
+
+7. THEN proceed to write plan.json + sbvr-rules.json + present the human-readable plan.
+
+If zero gaps are detected, skip the Q&A phase entirely and proceed directly to writing plan.json.
+
 ## Two Outputs (ALWAYS produce both)
 
 ### Output 1: Human-readable plan (for user approval)
@@ -62,89 +91,36 @@ You are an expert planning specialist for **Rockets SDK** projects.
 
 Write this file to `<project>/.rockets/plan.json`. This is the machine-readable input for `orchestrate.js`.
 
-**Schema:**
+**Schema:** See `references/planner-schemas.md` Section A for the full example with all field options.
 
-```json
-{
-  "entities": [
-    {
-      "entityName": "Category",
-      "fields": [
-        { "name": "name", "type": "string", "required": true, "maxLength": 100, "unique": true },
-        { "name": "description", "type": "text", "required": false }
-      ],
-      "relations": [],
-      "acl": {
-        "admin": { "possession": "any", "operations": ["create", "read", "update", "delete"] },
-        "user": { "possession": "any", "operations": ["read"] }
-      }
-    },
-    {
-      "entityName": "Task",
-      "fields": [
-        { "name": "title", "type": "string", "required": true, "maxLength": 200 },
-        { "name": "description", "type": "text", "required": false },
-        { "name": "status", "type": "enum", "enumValues": ["pending", "in_progress", "done"], "default": "pending" },
-        { "name": "dueDate", "type": "date", "required": false }
-      ],
-      "relations": [
-        { "name": "category", "type": "manyToOne", "targetEntity": "Category", "nullable": true },
-        { "name": "user", "type": "manyToOne", "targetEntity": "User", "onDelete": "CASCADE" }
-      ],
-      "ownerField": "userId",
-      "acl": {
-        "admin": { "possession": "any", "operations": ["create", "read", "update", "delete"] },
-        "user": { "possession": "own", "operations": ["create", "read", "update", "delete"] }
-      }
-    }
-  ],
-  "paths": {
-    "entity": "src/entities",
-    "module": "src/modules",
-    "shared": "src/shared"
-  },
-  "nonCrud": [
-    {
-      "name": "Report",
-      "type": "custom",
-      "description": "Aggregation endpoints consuming Task and Category model services",
-      "pattern": "business-logic"
-    }
-  ]
-}
-```
+Key fields: `entities[]` (entityName, fields, relations, acl, ownerField), `paths`, `nonCrud[]`, `sdkVersion`.
+
+### Output 3: `.rockets/sbvr-rules.json` (when source has behavioral rules)
+
+Write alongside `plan.json` when the spec is any document type containing behavioral rules (SBVR spec, PRD, RFC, or custom requirements). Use `check-sbvr-coverage.js` to read/update this file during implementation.
+
+**Include ONLY rules that require code implementation beyond CRUD:**
+- State machines & transitions (status enums + enforced maps)
+- Automation triggers (event-driven side effects)
+- Notifications
+- Custom non-CRUD endpoints (approve, cancel, assign, complete)
+- File upload constraints
+- External API integrations
+- Dedup/sync logic
+- Transaction workflows
+- Validation guards (model service guards, not DTO decorators)
+- Derived field computations
+
+**Do NOT include:** entity column definitions, FK relations, simple unique constraints, DTO-level validations — those go in `plan.json` fields/relations.
+
+**Schema:** See `references/planner-schemas.md` Section B for the full schema with all optional fields (technology, edgeCases, assumed).
 
 ### plan.json Schema Rules
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `entities[].entityName` | yes | PascalCase name (e.g., `"Task"`) |
-| `entities[].fields[]` | yes | Array of field configs (see `rockets-crud-generator/SKILL.md`) |
-| `entities[].relations[]` | no | Relations. `targetEntity` is base name WITHOUT `Entity` suffix |
-| `entities[].acl` | no | Role → possession + operations. Omit for public entities |
-| `entities[].ownerField` | no | Field for ownership check (default: `"userId"`) |
-| `entities[].operations` | no | Subset of CRUD ops (default: all) |
-| `entities[].isJunction` | no | `true` for many-to-many junction tables |
-| `entities[].paths` | no | Per-entity path overrides |
-| `paths` | no | Global paths (default: `src/entities`, `src/modules`, `src/shared`) |
-| `nonCrud[]` | no | Modules that need manual implementation (not orchestrated) |
-
-### Non-CRUD Service Rules
-
-Non-CRUD modules (listed in `nonCrud[]`) MUST follow Rule 4 from `CLAUDE.md`:
-- Inject model/CRUD services from other modules (e.g., `TaskCrudService`, `CategoryCrudService`)
-- NEVER inject `DataSource`, repositories, or use `@InjectRepository` / `@InjectDynamicRepository`
-- For aggregation, use `CrudService.getMany()` and aggregate in code (in-memory)
-- Only exception: `DataSource.transaction()` for transaction boundaries (Rule 8)
-- Include this constraint in the plan's non-CRUD module descriptions so implementing agents follow it
-
-### Important Rules for plan.json
-
-1. **Skip SDK-managed entities**: User, Role, UserRole, etc. are managed by `RocketsAuthModule`. Do NOT include them in `entities[]`. Only include entities that need NEW modules generated.
-2. **Relations to SDK entities**: Use `targetEntity: "User"` — the generator handles it. But note: the related module won't exist as a standalone module, so `CrudRelations` wiring will need cleanup (documented in generator SKILL.md).
-3. **Topological order is automatic**: `orchestrate.js` does topological sorting. You don't need to order entities manually.
-4. **Non-CRUD goes in `nonCrud[]`**: Report modules, dashboards, aggregation endpoints — these are NOT generated by the orchestrator. List them so the agent knows to implement them separately after orchestration.
-5. **Field types**: `string`, `text`, `number`, `float`, `boolean`, `date`, `uuid`, `json`, `enum`. Use `enumValues` for enum type.
+See `references/planner-schemas.md` Sections C, D, E for:
+- Full field reference table
+- Non-CRUD service injection rules
+- Important rules (SDK entities, topological order, etc.)
 
 ## Detect SDK Version
 
@@ -173,4 +149,5 @@ After user approves the plan:
 - Access control patterns from `development-guides/ACCESS_CONTROL_GUIDE.md`
 - **CRITICAL**: Present plan and WAIT for user confirmation before any code changes
 - **CRITICAL**: Plans from SBVR specs must include an SBVR Coverage Summary mapping every B-rule and ST-rule to an implementation phase and pattern
+- **CRITICAL**: For SBVR/PRD specs: run Gap Detection + Q&A phase before writing plan.json. Never assume technology — ask.
 - **CRITICAL**: ALWAYS write `.rockets/plan.json` — this is the input for automated orchestration

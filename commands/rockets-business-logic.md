@@ -1,4 +1,5 @@
 ---
+name: rockets-business-logic
 description: Implement business logic patterns on existing Rockets projects — state machines, workflows, notifications, file uploads, API integrations. Use after CRUD modules are generated.
 ---
 

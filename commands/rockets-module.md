@@ -1,4 +1,5 @@
 ---
+name: rockets-module
 description: Generate a complete Rockets SDK module with the 12-file pattern. Creates entity, interfaces, DTOs, adapter, services, controller, and module files. Auto-integrates into project and validates.
 ---
 

@@ -1,4 +1,5 @@
 ---
+name: rockets-build-fix
 description: Incrementally fix TypeScript, NestJS, and TypeORM build errors in Rockets SDK projects. Fixes one error at a time and re-checks.
 ---
 

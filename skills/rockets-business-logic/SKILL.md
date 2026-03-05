@@ -1,16 +1,16 @@
 ---
 name: rockets-business-logic
-description: Implement post-CRUD business logic using structured patterns — state machines, workflows, events, notifications, file uploads, API integrations. Use after CRUD modules are generated.
+description: Implement non-CRUD logic in Rockets SDK projects — custom services, cross-module aggregation, state machines, workflows, notifications, file uploads, API integrations. Use when a service needs to read/write entities without being a CRUD adapter, when modules need to share data, or when implementing post-CRUD business patterns.
 ---
 
 # Rockets Business Logic Skill
 
-Implements business logic patterns that go beyond standard CRUD. This is a conceptual skill — the AI adapts parameterized templates from `BUSINESS_LOGIC_PATTERNS_GUIDE.md` to the domain.
+Covers two complementary concerns:
 
-## Consolidated Scope
+1. **Service boundary rule** — any application service that is not an adapter must inject model services, never repositories.
+2. **Structured patterns** — state machines, workflows, events, notifications, file uploads, API integrations.
 
-This skill now subsumes the old `agents/rockets-custom-endpoints.md` guidance.
-Use it for all non-CRUD endpoint/workflow logic plus service-boundary enforcement.
+This skill subsumes the former `rockets-custom-endpoints` and `rockets-custom-code` guidance.
 
 ## Foundational Service Boundary Rules
 
@@ -18,13 +18,58 @@ Apply these rules before any pattern implementation:
 
 1. Application services MUST inject model services (or CRUD services when no model service exists), never repositories.
 2. `@InjectRepository(...)` is forbidden in custom/workflow/non-CRUD services.
-3. If cross-module logic needs an entity without model service, create/export the model service first.
-4. Modules must import providers from exporting modules; do not inject foreign entity repositories directly.
+3. If cross-module logic needs an entity without a model service, create and export the model service first.
+4. Modules must import providers from exporting modules; never inject foreign entity repositories directly.
 5. Keep controller logic thin: parameter extraction + delegation only.
+6. **Data flow**: Controller → Service → Model Services → (internal) Repository. Never: application service → repository.
 
-## When to Use
+### When a model service is needed
+
+Create a model service for a module when:
+- The module has **custom logic** beyond standard CRUD (aggregation, computed fields, business rules).
+- **Other modules** need to consume that entity (cross-module dependency).
+
+If an entity has no model service yet and you need custom access to it, create one using `@InjectDynamicRepository(...)` and expose `find()`, `byId()`, etc. Export it from the module and inject it where needed.
+
+### Module import rule for cross-module logic
+
+The host module must import the modules that **export** the model services it needs (e.g. `UserModule`, `TaskModule`). Do not add `TypeOrmModule.forFeature([...])` for entities owned by other modules.
+
+### Example — custom service using multiple entities
+
+```typescript
+// ✅ ReportService — injects model services only
+@Injectable()
+export class ReportService {
+  constructor(
+    private readonly userModelService: UserModelService,
+    private readonly taskModelService: TaskModelService,
+  ) {}
+
+  async getUsersWithTaskCount(): Promise<UserTaskReportItemDto[]> {
+    const users = await this.userModelService.find({ order: { email: 'ASC' } });
+    // ... for each user: taskModelService.find({ where: { userId: user.id } })
+  }
+}
+```
+
+```typescript
+// ❌ Wrong — direct repository in application service
+@Injectable()
+export class ReportService {
+  constructor(
+    @InjectRepository(UserEntity) private userRepo: Repository<UserEntity>,
+    @InjectRepository(TaskEntity) private taskRepo: Repository<TaskEntity>,
+  ) {}
+}
+```
+
+## When to Use This Skill
 
 After CRUD modules are generated (`rockets-crud-generator`), use this skill to implement:
+- Custom services that read/aggregate data from one or more entities (reports, analytics, dashboards)
+- Non-CRUD controllers or business logic that needs entity data
+- Cross-module dependencies (module A consuming entity from module B)
 - State machines with enforced transitions
 - Custom action endpoints (approve, cancel, assign, complete)
 - Cross-service workflow orchestration
@@ -35,11 +80,16 @@ After CRUD modules are generated (`rockets-crud-generator`), use this skill to i
 - Deduplication / reference data sync
 - Transactional multi-entity operations
 - Denormalized views for reporting
+- Background jobs (cron scheduling, queue-based processing)
+- Outbound webhook dispatch with delivery audit
 
 ## Pattern Selection Decision Tree
 
 ```
-What does the SBVR rule describe?
+What does the requirement describe?
+|
++-- Custom service reading/aggregating entities?
+|   -> Apply Foundational Rules + service checklist below
 |
 +-- Entity has status field with enumerated values?
 |   -> Pattern 1: State Machine + History
@@ -69,86 +119,72 @@ What does the SBVR rule describe?
 |
 +-- Read-heavy joins, dashboard data, role-based filtering?
 |   -> Pattern 10: Denormalized View
+|
++-- "System processes jobs in background / runs cron / queue"?
+|   -> Pattern 11: Background Jobs
+|
++-- "System sends HTTP callback/webhook to third-party URL when event occurs"?
+    -> Pattern 12: Outbound Webhooks
 ```
+
+## Checklist: Custom or Non-CRUD Logic
+
+1. **Module** — imports the modules that export the model services you need; no `TypeOrmModule.forFeature([...])` for foreign entities.
+2. **Custom / application service** — injects only model services (and/or CRUD services where appropriate); no `@InjectRepository`.
+3. **If entity has no model service yet** — add one using `@InjectDynamicRepository(...)`, export it from its module, then inject it here.
+4. **Controller** — injects only your service; ACL and Access Query as usual for the resource.
+5. **Verify** — `yarn build` and `yarn test`.
 
 ## Implementation Checklist Per Pattern
 
-### Pattern 1: State Machine
-- [ ] Create status enum in `{entity}-status.constants.ts`
-- [ ] Create transition map (current -> allowed next states with conditions)
-- [ ] Create `{entity}-status.service.ts` injecting model service
-- [ ] Add status transition endpoint(s) to controller
-- [ ] Register service in module providers + exports
-- [ ] Verify: no direct status updates outside status service
+For the full checklist of each pattern, read `references/patterns.md`.
 
-### Pattern 2: Custom Actions
-- [ ] Add action method to model service (business logic)
-- [ ] Add endpoint to controller (parameter extraction + delegation)
-- [ ] Add ACL decorator for the action endpoint
-- [ ] Verify: action logic in model service, not controller
-
-### Pattern 3: Orchestration
-- [ ] Create `{workflow}-workflow.service.ts`
-- [ ] Inject only model services from participating modules
-- [ ] Import participating modules in host module
-- [ ] Verify: no repository injection in workflow service
-
-### Pattern 4: Events
-- [ ] Install `@nestjs/event-emitter` if not present
-- [ ] Add `EventEmitterModule.forRoot()` to AppModule
-- [ ] Create event class in `events/` directory
-- [ ] Create listener in `listeners/` directory
-- [ ] Register listener as provider in module
-- [ ] Emit event from model service or status service
-
-### Pattern 5: Notifications
-- [ ] Create notification service injecting audit model service
-- [ ] Create email templates (Handlebars)
-- [ ] Create audit record BEFORE dispatching email
-- [ ] Handle email failure gracefully (log, don't throw)
-
-### Pattern 6: File Upload
-- [ ] Create upload controller with Multer interceptor
-- [ ] Create upload service with file validation
-- [ ] Configure allowed MIME types and max file size
-- [ ] Update entity with file path via model service
-- [ ] Add role-based ACL to upload endpoint
-
-### Pattern 7: External API
-- [ ] Install `@nestjs/axios` if not present
-- [ ] Create `{provider}-http.service.ts` with timeout and error handling
-- [ ] Config values from `ConfigService` (never hardcoded)
-- [ ] Return null on API failure (graceful degradation)
-
-### Pattern 8: Dedup/Sync
-- [ ] Add `syncFromApi()` to model service
-- [ ] Case-insensitive local lookup
-- [ ] Update provenance fields if not already set
-- [ ] Create new entity if not found locally
-
-### Pattern 9: Transactions
-- [ ] Inject `DataSource` in workflow service
-- [ ] Wrap multi-entity operations in `dataSource.transaction()`
-- [ ] Model services still handle business validation inside transaction
-
-### Pattern 10: Views
-- [ ] Create `@ViewEntity` with SQL expression
-- [ ] Register in `TypeOrmModule.forFeature()` and `ormconfig.ts`
-- [ ] Read-only controller or model service method
-- [ ] No create/update/delete on view entities
+Read it when: you have identified the pattern number and need the step-by-step checklist.
 
 ## Validation Gate
 
 After implementing business logic patterns:
 1. `yarn build` — zero TypeScript errors
-2. Behavioral rule coverage report — every B-rule and ST-rule from SBVR maps to implemented code
+2. Behavioral rule coverage — every SBVR B-rule and ST-rule maps to implemented code
 3. Event listeners registered — check module providers
 4. Status transitions enforced — no direct status updates outside status service
+
+## Implementing a Specific Rule from `.rockets/sbvr-rules.json`
+
+When invoked for a specific rule in the coverage loop (Step 4b of `/rockets-from-doc`):
+
+1. **Read the rule fields**: `id`, `type`, `description`, `entity`, `pattern`
+2. **Select the pattern checklist** from `references/patterns.md` using `rule.pattern`
+   - If `rule.pattern` is null/undefined (type `validation` or `derived-field`): implement inline in model service or response layer
+3. **Implement the code**: create files, register providers, wire into module
+   - Follow all Foundational Service Boundary Rules (no `@InjectRepository` in non-adapter services)
+   - Follow the Mandatory Engineering Rules from `CLAUDE.md`
+4. **Collect files created/modified** — you will report these to `check-sbvr-coverage.js`
+5. **Do NOT mark as implemented** until code compiles (`yarn build` passes). The calling loop (Step 4b) will invoke `check-sbvr-coverage.js --mark-implemented` after you confirm completion.
+
+**Per-type guidance:**
+
+| type | What to implement |
+|------|-------------------|
+| `state-machine` | Pattern 1: status enum, transition map, status service, history entity |
+| `custom-endpoint` | Pattern 2: action method in model service + endpoint in controller |
+| `orchestration` | Pattern 3: workflow service injecting model services from participating modules |
+| `automation` | Pattern 4: event class + listener + emit from model/status service |
+| `notification` | Pattern 5: notification service + audit record before dispatch |
+| `file-upload` | Pattern 6: upload controller + Multer + validation service |
+| `api-integration` | Pattern 7: `{provider}-http.service.ts` with graceful degradation |
+| `dedup-sync` | Pattern 8: `syncFromApi()` in model service |
+| `transaction` | Pattern 9: `DataSource.transaction()` in workflow service |
+| `background-job` | Pattern 11a (cron) or 11b (queue) based on `technology` field — scheduler/processor injects model service |
+| `outbound-webhook` | Pattern 12: webhook service + delivery entity + audit log, triggered via Pattern 4 listener |
+| `validation` | Guard logic in model service — throw before persisting |
+| `derived-field` | Computed in response DTO or serializer — not persisted |
 
 ## References
 
 - `development-guides/BUSINESS_LOGIC_PATTERNS_GUIDE.md` — canonical pattern templates
-- `development-guides/SBVR_EXTRACTION_GUIDE.md` — rule classification and extraction
-- `development-guides/CRUD_PATTERNS_GUIDE.md` — CRUD foundation (generate first)
-- `development-guides/SDK_SERVICES_GUIDE.md` — model service rules
-- `skills/rockets-custom-code/SKILL.md` — general non-CRUD rule (model service injection)
+- `development-guides/SDK_SERVICES_GUIDE.md` — model service rules and custom service implementation
+- `development-guides/SBVR_EXTRACTION_GUIDE.md` — rule classification, extraction, and coverage registry
+- `development-guides/CRUD_PATTERNS_GUIDE.md` — CRUD foundation (generate first); also "Custom Controllers" and "Custom logic (non-CRUD)" sections
+- `skills/rockets-orchestrator/scripts/check-sbvr-coverage.js` — coverage tracking script
+- `references/patterns.md` — full implementation checklists for Patterns 1–12

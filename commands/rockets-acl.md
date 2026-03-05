@@ -1,4 +1,5 @@
 ---
+name: rockets-acl
 description: Add or modify access control for a Rockets SDK resource. Updates AppResource enum, acRules, and Access Query Service with ownership logic via queryServices pattern.
 ---
 
