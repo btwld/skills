@@ -19,7 +19,7 @@ description: This skill should be used when adding ACL to an existing module, mo
 2. **Add to AppResource enum** in `app.acl.ts`
 3. **Define ACL rules** in `app.acl.ts` (`acRules.grant()`)
 4. **Create Access Query Service** — uses `@InjectDynamicRepository` for ownership checks
-5. **Register** in `queryServices` of AccessControlModule config (not in feature module)
+5. **Register** as a provider in the feature module and export it (AccessControlGuard resolves via the controller's host module)
 6. **Add controller decorators** — `@UseGuards(AccessControlGuard)`, `@AccessControlQuery`, etc.
 
 See `development-guides/ACCESS_CONTROL_GUIDE.md` for the full Access Query Service pattern and registration code.
@@ -31,7 +31,7 @@ See `development-guides/ACCESS_CONTROL_GUIDE.md` for the full Access Query Servi
 | 403 on all requests | Resource not in acRules | Add `acRules.grant()` in `app.acl.ts` |
 | 403 for users only | Missing Own permissions | Add `createOwn`/`readOwn`/etc. |
 | Access Query always denies | Default `return false` | Implement ownership check in `canAccess()` |
-| 500 "provider does not exist" | Access query service in feature module | Move to `queryServices` in AccessControlModule config |
+| 500 "provider does not exist" | Access query service not in controller's module | Add to `providers` + `exports` in the feature module |
 | Users see all resources | No ownership filtering | Implement `readOwn` in Access Query using `@InjectDynamicRepository` |
 
 ## Full Reference

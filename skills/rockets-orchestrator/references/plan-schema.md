@@ -39,7 +39,7 @@ Machine-readable input for `orchestrate.js`. Written to `<project>/.rockets/plan
     }
   ],
   "paths": {
-    "entity": "src/entities",
+    "entity": "src/modules",
     "module": "src/modules",
     "shared": "src/shared"
   },
@@ -66,7 +66,7 @@ Machine-readable input for `orchestrate.js`. Written to `<project>/.rockets/plan
 | `entities[].operations` | no | Subset of CRUD ops (default: all) |
 | `entities[].isJunction` | no | `true` for many-to-many junction tables |
 | `entities[].paths` | no | Per-entity path overrides |
-| `paths` | no | Global paths (default: `src/entities`, `src/modules`, `src/shared`) |
+| `paths` | no | Global paths (default: `src/modules`, `src/shared`) |
 | `nonCrud[]` | no | Modules that need manual implementation (not orchestrated) |
 
 ## Non-CRUD Service Rules
