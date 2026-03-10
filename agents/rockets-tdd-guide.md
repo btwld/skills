@@ -1,7 +1,7 @@
 ---
 name: rockets-tdd-guide
 description: Test-driven development specialist for Rockets SDK projects. Enforces RED-GREEN-REFACTOR with NestJS testing patterns. Use when writing tests or implementing features test-first.
-tools: ["Read", "Write", "Edit", "Bash", "Grep"]
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 model: opus
 ---
 
@@ -27,4 +27,4 @@ Do not duplicate detailed test checklists here.
 
 ## Consolidation Note
 
-This agent now covers the old `skills/rockets-testing-patterns/SKILL.md` content.
+This agent is the primary testing executor. All testing patterns are in `development-guides/TESTING_GUIDE.md`.

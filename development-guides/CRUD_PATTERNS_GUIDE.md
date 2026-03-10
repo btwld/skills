@@ -158,7 +158,7 @@ export const ArtistResource = {
 
 ### Custom logic (non-CRUD)
 
-Any logic that is **not** standard CRUD (custom services, aggregation, cross-entity use) must **not** inject repositories in application services. It must use the **model service** of each entity it needs. Modules with custom logic or cross-module dependencies should expose a **model service** for their entity so that other modules and custom logic can depend on it. Repositories belong only in adapters and model services. See [SDK_SERVICES_GUIDE.md](./SDK_SERVICES_GUIDE.md) and the **rockets-custom-code** skill for the full rule and examples.
+Any logic that is **not** standard CRUD (custom services, aggregation, cross-entity use) must **not** inject repositories in application services. It must use the **model service** of each entity it needs. Modules with custom logic or cross-module dependencies should expose a **model service** for their entity so that other modules and custom logic can depend on it. Repositories belong only in adapters and model services. See [SDK_SERVICES_GUIDE.md](./SDK_SERVICES_GUIDE.md) and the **rockets-business-logic** skill for the full rule and examples.
 
 ### Example: Custom Business Endpoint
 

@@ -452,9 +452,8 @@ Agents are AI role specs invoked by commands. You typically don't call these dir
 | `rockets-security-reviewer` | Audits ACL, guards, and auth configuration |
 | `rockets-build-resolver` | Diagnoses and fixes build errors |
 | `rockets-tdd-guide` | Guides TDD for Rockets projects |
-| `rockets-custom-endpoints` | *(Deprecated)* — Use `rockets-business-logic` skill instead |
 
-### Skills (8)
+### Skills (6)
 
 Skills are executable tools with scripts. They work with any agent — Claude, Cursor, or Codex can run the scripts directly.
 
@@ -464,10 +463,8 @@ Skills are executable tools with scripts. They work with any agent — Claude, C
 | `rockets-orchestrator` | Batch-generates entities with topological sorting | `scripts/orchestrate.js` |
 | `rockets-access-control` | Configures ACL rules and ownership enforcement | (guide-driven) |
 | `rockets-business-logic` | State machines, workflows, events, notifications | (guide-driven) |
-| `rockets-custom-code` | Rules for non-CRUD logic with correct service boundaries | (guide-driven) |
 | `rockets-runtime-diagnostics` | Executable diagnostics for runtime/build/ACL errors | `scripts/diagnose.js` |
 | `rockets-project-bootstrap` | Bootstraps a new Rockets project | `scripts/bootstrap.js` |
-| `rockets-testing-patterns` | *(Deprecated)* — Use `rockets-tdd-guide` agent instead | — |
 
 ### Hooks (Quality Guardrails)
 

@@ -1,6 +1,6 @@
 ---
 name: rockets-project-bootstrap
-description: Bootstrap a Rockets project from boilerplate with executable setup steps (clone, env, install, build/test checks). Use when starting a new Rockets project from rockets-starter or similar templates.
+description: This skill should be used when starting a new Rockets SDK project, setting up a fresh API, or initializing from the rockets-starter template. Automates clone, env setup, dependency install, and build/test verification.
 ---
 
 # Rockets Project Bootstrap

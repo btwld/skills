@@ -26,7 +26,7 @@
 | **Add security** (ACL setup, access control, permissions, roles, ownership filtering) | [ACCESS_CONTROL_GUIDE.md](./ACCESS_CONTROL_GUIDE.md) | 250 |
 | **Create DTOs** (validation, PickType patterns) | [DTO_PATTERNS_GUIDE.md](./DTO_PATTERNS_GUIDE.md) | 150 |
 | **Write tests** (unit, e2e, fixtures, AAA pattern) | [TESTING_GUIDE.md](./TESTING_GUIDE.md) | 800 |
-| **Custom logic / non-CRUD** (any service that uses entities: use model services; every module exposes a model service for its entity) | Skill **rockets-custom-code** + [SDK_SERVICES_GUIDE.md](./SDK_SERVICES_GUIDE.md) | — |
+| **Custom logic / non-CRUD** (any service that uses entities: use model services; every module exposes a model service for its entity) | Skill **rockets-business-logic** + [SDK_SERVICES_GUIDE.md](./SDK_SERVICES_GUIDE.md) | — |
 
 ### **🏭 Phase 3: Business Logic Implementation**
 
@@ -37,6 +37,11 @@
 | **State machines, workflows, custom endpoints, events** | [BUSINESS_LOGIC_PATTERNS_GUIDE.md](./BUSINESS_LOGIC_PATTERNS_GUIDE.md) | 600 |
 | **SBVR rule extraction and classification** | [SBVR_EXTRACTION_GUIDE.md](./SBVR_EXTRACTION_GUIDE.md) | 150 |
 | **Pattern implementation checklists** | `rockets-business-logic` skill | — |
+
+### **🤖 Agent Teams & Orchestration**
+| Task | Guide | Lines |
+|------|-------|-------|
+| **Agent team formation** (when to form, roles, communication) | [AGENT_TEAMS_GUIDE.md](./AGENT_TEAMS_GUIDE.md) | 40 |
 
 ### **🔧 Advanced Integration**
 | Task | Guide | Lines |
@@ -188,7 +193,7 @@ Read AUTHENTICATION_ADVANCED_GUIDE.md and implement custom providers and strateg
 ### **For custom logic (non-CRUD):**
 ```
 I need to implement logic that uses entity data but is not standard CRUD.
-Read the rockets-custom-code skill and SDK_SERVICES_GUIDE.md. Use model services for custom logic; create a model service when needed (custom logic or cross-module dependency); no @InjectRepository in application services.
+Read the rockets-business-logic skill and SDK_SERVICES_GUIDE.md. Use model services for custom logic; create a model service when needed (custom logic or cross-module dependency); no @InjectRepository in application services.
 ```
 
 ---

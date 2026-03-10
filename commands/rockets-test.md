@@ -1,5 +1,6 @@
 ---
 description: Run tests and enforce TDD workflow for Rockets SDK projects. Writes tests for Access Query Services, Model Services, and CRUD controllers.
+argument-hint: <ModuleName>
 ---
 
 # Rockets Test Command

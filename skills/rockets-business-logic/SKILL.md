@@ -1,16 +1,16 @@
 ---
 name: rockets-business-logic
-description: Implement post-CRUD business logic using structured patterns — state machines, workflows, events, notifications, file uploads, API integrations. Use after CRUD modules are generated.
+description: This skill should be used when implementing business logic beyond standard CRUD — state machines, approval workflows, event-driven automation, notifications, file uploads, external API integration, or cross-entity orchestration. Use after CRUD modules are generated. Also covers the foundational rule that application services must inject model services, never repositories.
 ---
 
 # Rockets Business Logic Skill
 
 Implements business logic patterns that go beyond standard CRUD. This is a conceptual skill — the AI adapts parameterized templates from `BUSINESS_LOGIC_PATTERNS_GUIDE.md` to the domain.
 
-## Consolidated Scope
+## Scope
 
-This skill now subsumes the old `agents/rockets-custom-endpoints.md` guidance.
-Use it for all non-CRUD endpoint/workflow logic plus service-boundary enforcement.
+This skill covers all non-CRUD endpoint/workflow logic plus service-boundary enforcement.
+It also covers general custom code patterns (model service injection, cross-module dependencies).
 
 ## Foundational Service Boundary Rules
 
@@ -21,6 +21,43 @@ Apply these rules before any pattern implementation:
 3. If cross-module logic needs an entity without model service, create/export the model service first.
 4. Modules must import providers from exporting modules; do not inject foreign entity repositories directly.
 5. Keep controller logic thin: parameter extraction + delegation only.
+
+### When to Create a Model Service
+
+Create a model service for a module when:
+- The module has **custom logic** beyond standard CRUD (aggregation, computed fields, business rules).
+- **Other modules** need to consume that entity (cross-module dependency).
+
+Modules with only standard CRUD may omit the model service.
+
+### Example: Right vs Wrong
+
+```typescript
+// ✅ ReportService — injects model services only
+@Injectable()
+export class ReportService {
+  constructor(
+    private readonly userModelService: UserModelService,
+    private readonly taskModelService: TaskModelService,
+  ) {}
+
+  async getUsersWithTaskCount(): Promise<UserTaskReportItemDto[]> {
+    const users = await this.userModelService.find({ order: { email: 'ASC' } });
+    // ... for each user: taskModelService.find({ where: { userId: user.id } })
+  }
+}
+```
+
+```typescript
+// ❌ Wrong — direct repository in application service
+@Injectable()
+export class ReportService {
+  constructor(
+    @InjectRepository(UserEntity) private userRepo: Repository<UserEntity>,
+    @InjectRepository(TaskEntity) private taskRepo: Repository<TaskEntity>,
+  ) {}
+}
+```
 
 ## When to Use
 
@@ -151,4 +188,3 @@ After implementing business logic patterns:
 - `development-guides/SBVR_EXTRACTION_GUIDE.md` — rule classification and extraction
 - `development-guides/CRUD_PATTERNS_GUIDE.md` — CRUD foundation (generate first)
 - `development-guides/SDK_SERVICES_GUIDE.md` — model service rules
-- `skills/rockets-custom-code/SKILL.md` — general non-CRUD rule (model service injection)

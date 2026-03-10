@@ -1,11 +1,13 @@
 ---
 name: rockets-orchestrator
-description: Orchestrate multi-entity Rockets SDK project generation with topological sorting, wave-based execution, validation gates, and cross-session state. Supports Agent Teams for parallel generation or sequential fallback.
+description: This skill should be used when generating an entire Rockets SDK project from a spec, bootstrapping multiple entities at once, or when the user has a plan.json file. Orchestrates wave-based generation with dependency ordering and validation gates. Works sequentially by default; supports Agent Teams for parallel execution. Requires rockets-crud-generator.
 ---
 
 # Rockets Orchestrator
 
 Generates complete Rockets SDK projects from a parsed spec — multiple entities, relations, ACL — with automatic dependency ordering, validation gates, and progress tracking.
+
+> **Requires:** `rockets-crud-generator` must be installed as a sibling skill.
 
 ## Quick Start
 
@@ -60,7 +62,7 @@ After all waves + migration:
 1. Run `validate.js --build` for full TypeScript compilation check
 2. Optionally run `smoke-test-endpoints.js` for HTTP endpoint testing
 
-### 4. Cross-Session State
+### 5. Cross-Session State
 
 Progress is saved to `.rockets/state.json` in the project directory:
 ```json
