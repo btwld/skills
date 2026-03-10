@@ -1,6 +1,9 @@
-# Rockets SDK — Canonical Project Contract
+# Rockets SDK Plugin — btwld
 
-This repository is organized to work consistently across AI coding agents (Claude, Codex, Cursor).
+Claude Code plugin providing reusable skills, commands, agents, and hooks for Rockets SDK projects (NestJS + TypeORM + Concepta).
+
+- **Plugin manifest**: `.claude-plugin/plugin.json`
+- **Hooks config**: `hooks/hooks.json`
 
 ## Canonical Structure
 
@@ -10,6 +13,13 @@ This repository is organized to work consistently across AI coding agents (Claud
 - `agents/`: role-specific behavior specs (planner, reviewer, security, etc.)
 - `hooks/`: guardrails and reminders
 - `examples/`: sample specs and generated projects
+
+## Plugin Development
+
+- Validate plugin: `claude plugin validate .`
+- Test locally in a target project: `claude --plugin-dir .`
+- Install to a project: `claude plugin install . --scope project`
+- Hooks are in `hooks/hooks.json` — PreToolUse blocks violations, PostToolUse reminds
 
 ## Routing Rules
 
@@ -34,52 +44,16 @@ This repository is organized to work consistently across AI coding agents (Claud
 | `/rockets-plan` | `rockets-planner` | (planning only; guide-driven) |
 | `/rockets-module` | `rockets-module-generator` | `rockets-crud-generator`, `rockets-access-control` |
 | `/rockets-acl` | (default executor) | `rockets-access-control` |
-| `/rockets-business-logic` | `rockets-architect` or `rockets-planner` (as needed) | `rockets-business-logic`, `rockets-custom-code` |
+| `/rockets-business-logic` | `rockets-architect` or `rockets-planner` (as needed) | `rockets-business-logic` |
 | `/rockets-test` | `rockets-tdd-guide` | (testing via `development-guides/TESTING_GUIDE.md`) |
 | `/rockets-review` | `rockets-code-reviewer`, `rockets-auto-reviewer` (haiku) | (review via guides) |
 | `/rockets-build-fix` | `rockets-build-resolver` | `rockets-runtime-diagnostics` |
 | `/rockets-from-doc` | `rockets-planner` + Agent Teams (or sequential fallback) | `rockets-orchestrator`, `rockets-crud-generator`, all relevant skills |
 
-## Agent Teams (Auto-Formation)
+## Agent Teams
 
-When `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is enabled (plugin settings),
-auto-form teams for tasks that benefit from parallel execution.
-
-### When to Form Teams
-
-| Task Pattern | Form Team? | Reason |
-|-------------|-----------|--------|
-| Full project from spec (`/rockets-from-doc`) | YES | Multi-entity parallel gen + review |
-| 3+ entities at once | YES | Wave-based parallel generation |
-| Single entity (`/rockets-module`) | NO | Scripts handle it, one-shot |
-| Code review (`/rockets-review`) | NO | Single agent sufficient |
-| Build fix (`/rockets-build-fix`) | NO | Sequential debug loop |
-| Planning only (`/rockets-plan`) | NO | Single planner sufficient |
-
-### Team Composition
-
-| Role | Agent File | Model | Spawned When |
-|------|-----------|-------|-------------|
-| Lead | rockets-planner | opus | Always — parses spec, creates tasks, coordinates |
-| Generator | rockets-module-generator | sonnet | Per wave — runs generate.js + integrate.js |
-| Reviewer | rockets-auto-reviewer | haiku | After each wave — validates 9 engineering rules |
-| Tester | (inline) | sonnet | After all waves — validate.js + smoke-test |
-| Builder | rockets-build-resolver | sonnet | Only on build failure — fix + retry (max 3) |
-
-### Communication Rules
-
-- Reviewer → Generator: direct fix requests (skip Lead roundtrip)
-- Builder → Lead: report after max retries exhausted
-- Tester blocks next wave until current passes
-- Lead synthesizes final report to user
-
-### Task Dependencies
-
-Tasks use `blockedBy` matching the topological sort from plan.json:
-- Wave 0 entities: no blockers
-- Wave N entities: blocked by Wave N-1 completion
-- Review tasks: blocked by their wave's generation tasks
-- Final smoke test: blocked by all generation + review tasks
+When `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is enabled, commands like `/rockets-from-doc` auto-form teams for parallel execution.
+See [AGENT_TEAMS_GUIDE.md](./development-guides/AGENT_TEAMS_GUIDE.md) for team composition, communication rules, and task dependencies.
 
 ## Task Decision Tree
 
@@ -87,7 +61,6 @@ New project setup       → rockets-project-bootstrap skill
 New entity / CRUD       → /rockets-module (uses rockets-crud-generator)
                           then: /rockets-acl, /rockets-test, /rockets-review
 Business logic / non-CRUD → /rockets-business-logic (uses rockets-business-logic skill)
-                             For simple cases: rockets-custom-code skill directly
 Build/runtime error     → /rockets-build-fix + rockets-runtime-diagnostics
 Full project from spec  → /rockets-from-doc (uses rockets-orchestrator + Agent Teams)
 Architecture/planning   → /rockets-plan
@@ -103,10 +76,7 @@ NEVER: Read a guide to copy-paste module code. Use the generator.
 
 ### Current Deprecations
 
-1. `agents/rockets-custom-endpoints.md`
-   Replacement: `skills/rockets-business-logic/SKILL.md` + `skills/rockets-custom-code/SKILL.md`.
-2. `skills/rockets-testing-patterns/SKILL.md`
-   Replacement: `agents/rockets-tdd-guide.md` + `development-guides/TESTING_GUIDE.md`.
+None.
 
 ## Mandatory Engineering Rules
 
@@ -127,7 +97,7 @@ Do not duplicate policy across agent-specific files. Keep shared rules in this f
 ## Decision Enforcement
 
 - "New entity/module" → ALWAYS use `rockets-crud-generator` skill (or `/rockets-module`)
-- "Business logic / non-CRUD" → `/rockets-business-logic` (or `rockets-custom-code` skill for simple cases)
+- "Business logic / non-CRUD" → `/rockets-business-logic`
 - "New project" → Use `rockets-project-bootstrap` skill
 - Guides are for understanding patterns, NEVER for copying module code
 

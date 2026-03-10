@@ -1,6 +1,6 @@
 {
   "name": "rockets-sdk-config",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Claude Code agents, commands, and hooks for Rockets SDK projects (NestJS + TypeORM + Concepta). References project guides — does not duplicate.",
   "author": {
     "name": "BTWLD",
@@ -27,7 +27,6 @@
     "./agents/rockets-auto-reviewer.md",
     "./agents/rockets-build-resolver.md",
     "./agents/rockets-code-reviewer.md",
-    "./agents/rockets-custom-endpoints.md",
     "./agents/rockets-module-generator.md",
     "./agents/rockets-planner.md",
     "./agents/rockets-security-reviewer.md",

@@ -1,5 +1,6 @@
 ---
 description: Implement business logic patterns on existing Rockets projects — state machines, workflows, notifications, file uploads, API integrations. Use after CRUD modules are generated.
+argument-hint: <pattern or description>
 ---
 
 # Rockets Business Logic Command
@@ -56,7 +57,7 @@ Implements non-CRUD business logic using structured patterns from `BUSINESS_LOGI
 - Pattern templates: `development-guides/BUSINESS_LOGIC_PATTERNS_GUIDE.md`
 - Extraction rules: `development-guides/SBVR_EXTRACTION_GUIDE.md`
 - Skill implementation: `skills/rockets-business-logic/SKILL.md`
-- Foundation: `rockets-custom-code` skill (model service injection rule)
+- Foundation: `rockets-business-logic` skill (includes model service injection rules)
 - Build validation: `rockets-runtime-diagnostics`
 
 ## Mandatory Rules

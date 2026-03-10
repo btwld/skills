@@ -1,7 +1,7 @@
 ---
 name: rockets-security-reviewer
 description: Rockets SDK security specialist focused on access control, guard configuration, ACL rules, and NestJS security. Use PROACTIVELY after modifying authentication, authorization, or access control code.
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
+tools: ["Read", "Grep", "Glob"]
 model: opus
 ---
 

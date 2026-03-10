@@ -1,5 +1,6 @@
 ---
 description: Implement a full project from a requirements document (PRD/spec/RFC). Coordinates planning, orchestrated CRUD generation, business logic, and validation — end to end.
+argument-hint: <path/to/spec.md>
 ---
 
 # Rockets From Doc Command
@@ -57,11 +58,11 @@ node skills/rockets-orchestrator/scripts/orchestrate.js \
 
 For modules listed in `plan.json.nonCrud[]`:
 
-**CRITICAL**: Non-CRUD services MUST NOT use `DataSource` or repositories directly (Rule 4).
+**CRITICAL**: Non-CRUD services MUST NOT use `DataSource` or repositories directly (non-model services must consume model services, never repositories).
 Inject `CrudService`/`ModelService` from CRUD modules. For aggregation, use `getMany()` + in-memory processing.
-Only exception: `DataSource.transaction()` for transaction boundaries (Rule 8).
+Only exception: `DataSource.transaction()` for transaction boundaries (workflow services use model services for entity access except `DataSource.transaction()`).
 
-1. Use `rockets-business-logic` skill or `rockets-custom-code` skill
+1. Use `rockets-business-logic` skill
 2. Follow patterns from `development-guides/BUSINESS_LOGIC_PATTERNS_GUIDE.md`
 3. State machines → Pattern 1 (status enums, transition maps, history entities)
 4. Custom endpoints → Pattern 2 (approve, cancel, assign, complete)

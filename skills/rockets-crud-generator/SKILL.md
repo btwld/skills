@@ -1,6 +1,6 @@
 ---
 name: rockets-crud-generator
-description: Generate complete Rockets SDK CRUD modules with TypeORM entities, NestJS modules, controllers, services, DTOs, and interfaces. Use when creating new entities, domain objects, or junction tables for many-to-many relationships.
+description: This skill should be used when the user asks to generate a CRUD module, create a new entity, scaffold a domain object, add a new resource with endpoints, or create a junction table. Generates complete Rockets SDK modules including TypeORM entities, NestJS modules, controllers, services, DTOs, interfaces, and ACL wiring using generate.js, integrate.js, and validate.js scripts.
 ---
 
 # Rockets SDK CRUD Generator
@@ -11,13 +11,13 @@ Generate complete CRUD modules following Rockets SDK patterns with TypeORM, Nest
 
 ```bash
 # Generate files (outputs JSON)
-node crud-generator/scripts/generate.js '{ "entityName": "Product", "fields": [...] }'
+node skills/rockets-crud-generator/scripts/generate.js '{ "entityName": "Product", "fields": [...] }'
 
 # Generate + integrate into project
-node crud-generator/scripts/generate.js '{ ... }' | node crud-generator/scripts/integrate.js --project ./apps/api
+node skills/rockets-crud-generator/scripts/generate.js '{ ... }' | node skills/rockets-crud-generator/scripts/integrate.js --project ./apps/api
 
 # Validate after generation
-node crud-generator/scripts/validate.js --project ./apps/api --build
+node skills/rockets-crud-generator/scripts/validate.js --project ./apps/api --build
 ```
 
 ## Scripts
