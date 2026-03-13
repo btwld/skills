@@ -1,6 +1,6 @@
 ---
 name: rockets-architect
-description: Rockets SDK architecture specialist for system design, module composition, and Concepta package selection. Use PROACTIVELY when planning new features, evaluating package choices, or making architectural decisions.
+description: Rockets SDK architecture specialist for system design, module composition, and Concepta package selection. Evaluates package choices, entity relationships, and access control strategies.
 tools: ["Read", "Grep", "Glob"]
 model: opus
 ---
