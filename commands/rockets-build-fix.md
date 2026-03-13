@@ -19,16 +19,6 @@ Invokes the **rockets-build-resolver** agent to fix build errors.
 - `CLAUDE.md`
 - `skills/rockets-runtime-diagnostics/SKILL.md`
 
-## Common Rockets Build Errors
-
-| Error | Typical Fix |
-|-------|-------------|
-| Entity not found | Add to `TypeOrmExtModule.forFeature()` + `ormconfig.ts` |
-| Missing provider | Add to module `providers` or import from another module |
-| Circular dependency | Use `forwardRef()` or restructure modules |
-| Interface not implemented | Add missing methods from Concepta base class |
-| DTO type mismatch | Fix generic parameters on `PickType`/`IntersectionType` |
-
 ## Safety Rules
 
 - Fix ONE error at a time

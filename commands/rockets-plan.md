@@ -1,5 +1,6 @@
 ---
 description: Plan a Rockets SDK feature with architecture, module structure, ACL, and implementation phases. WAIT for user confirmation before writing code.
+argument-hint: <feature description>
 ---
 
 # Rockets Plan Command
